@@ -120,9 +120,9 @@ class Controller_PID_Velocity(Controller_PID_Point2Point):
         y_val = self.ANGULAR_P[1]*(phi_error) + self.ANGULAR_D[1]*(-phi_dot) + self.phii_term
         z_val = self.ANGULAR_P[2]*(gamma_dot_error) + self.gammai_term
         z_val = np.clip(z_val,self.YAW_CONTROL_LIMITS[0],self.YAW_CONTROL_LIMITS[1])
-        m1 = throttle + x_val + z_val
-        m2 = throttle + y_val - z_val
-        m3 = throttle - x_val + z_val
-        m4 = throttle - y_val - z_val
+        m1 = throttle + x_val + y_val + z_val
+        m2 = throttle - x_val + y_val - z_val
+        m3 = throttle - x_val - y_val + z_val
+        m4 = throttle + x_val - y_val - z_val
         M = np.clip([m1,m2,m3,m4],self.MOTOR_LIMITS[0],self.MOTOR_LIMITS[1])
         self.actuate_motors(self.quad_identifier,M)
