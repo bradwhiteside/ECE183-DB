@@ -1,3 +1,4 @@
+import numpy as np
 
 # Graph object contains a dict of nodes (V) and a set of edges (E)
 # it constructs an adjacency list in the form of a nested dictionary
@@ -32,6 +33,14 @@ class Graph:
     def insert_node(self, name, pos, type=None):
         if self.V is None:
             self.V = {}
+
+        if type(pos) is list and len(pos) is 3:
+            pos = np.array(pos)
+        elif type(pos) is np.ndarray and len(pos) is 3:
+            pass
+        else:
+            raise ValueError("Position of new node is in an invalid format. Must be a list or numpy array of length 3")
+
         self.V[name] = Node(name, pos, type)
 
     def insert_edge(self, node1, node2, weight):
