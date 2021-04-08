@@ -1,61 +1,73 @@
-# Taken from https://www.python-course.eu/graphs_python.php
 
-class Graph(object):
-    def __init__(self, graph_dict=None):
-        """ initializes a graph object
-            If no dictionary or None is given,
-            an empty dictionary will be used
-        """
-        if graph_dict == None:
-            graph_dict = {}
-        self.__graph_dict = graph_dict
+# Graph object contains a dict of nodes (V) and a set of edges (E)
+# it constructs an adjacency list in the form of a nested dictionary
+# example:  graph_dict = { 'A': {'B': 3, 'C': 5},
+#                          'B': {'A': 3, 'C': 1},
+#                          'C': {'A': 5, 'B': 1},
+#                          'D': {'A': 4} }
+#           represents 4 nodes A, B, C, D and 3 undirected edges
+#           (A, B) of length 3, (A, C) of length 5, and (B, C) of length 1
+#           and 1 directed edge (D, A) of length 4
 
-    def vertices(self):
-        """ returns the vertices of a graph """
-        return list(self.__graph_dict.keys())
+class Graph:
+    def __init__(self, nodes=None, edges=None, gd=None):
+        self.V = nodes
+        self.E = edges
+        self.graph_dict = gd
 
-    def edges(self):
-        """ returns the edges of a graph """
-        return self.__generate_edges()
+    def construct_graph_dict(self):
+        graph_dict = {}
 
-    def add_vertex(self, vertex):
-        """ If the vertex "vertex" is not in
-            self.__graph_dict, a key "vertex" with an empty
-            list as a value is added to the dictionary.
-            Otherwise nothing has to be done.
-        """
-        if vertex not in self.__graph_dict:
-            self.__graph_dict[vertex] = []
+        for name in self.V:
+            graph_dict[name] = {}
 
-    def add_edge(self, edge):
-        """ assumes that edge is of type set, tuple or list;
-            between two vertices can be multiple edges!
-        """
-        edge = set(edge)
-        (vertex1, vertex2) = tuple(edge)
-        if vertex1 in self.__graph_dict:
-            self.__graph_dict[vertex1].append(vertex2)
+        for e in self.E:
+            if e.node2 not in graph_dict[e.node1]:
+                graph_dict[e.node1][e.node2] = e.weight
+            if e.node1 not in graph_dict[e.node2]:
+                graph_dict[e.node2][e.node1] = e.weight
+
+        self.graph_dict = graph_dict
+
+    def insert_node(self, name, pos, type=None):
+        if self.V is None:
+            self.V = {}
+        self.V[name] = Node(name, pos, type)
+
+    def insert_edge(self, node1, node2, weight):
+        if self.E is None:
+            self.E = set()
+        self.E.add(Edge(node1, node2, weight))
+
+
+class Node:
+    def __init__(self, name, pos=None, type=None):
+        self.name = name
+        self.pos = pos  # 3D
+        # type = 0 means transit, = 1 means pick up, = 2 means drop off
+        self.type = type
+
+    def __eq__(self, other):
+        return self.name == other.name
+
+
+class Edge:
+    def __init__(self, node1, node2, weight):
+        self.node1 = node1
+        self.node2 = node2
+        self.weight = weight
+
+    # must overload < and == operators to make a set
+    def __lt__(self, other):
+        if (self.node1 == other.node1 and self.node2 == other.node2) or \
+                (self.node1 == other.node2 and self.node2 == other.node1):
+            return self.weight < other.weight  # compare based on weight
         else:
-            self.__graph_dict[vertex1] = [vertex2]
+            raise ValueError("Cannot compare edges that aren't connecting the same nodes")
 
-    def __generate_edges(self):
-        """ A static method generating the edges of the
-            graph "graph". Edges are represented as sets
-            with one (a loop back to the vertex) or two
-            vertices
-        """
-        edges = []
-        for vertex in self.__graph_dict:
-            for neighbour in self.__graph_dict[vertex]:
-                if {neighbour, vertex} not in edges:
-                    edges.append({vertex, neighbour})
-        return edges
-
-    def __str__(self):
-        res = "vertices: "
-        for k in self.__graph_dict:
-            res += str(k) + " "
-        res += "\nedges: "
-        for edge in self.__generate_edges():
-            res += str(edge) + " "
-        return res
+    def __eq__(self, other):
+        if ((self.node1 == other.node1 and self.node2 == other.node2) or
+                (self.node1 == other.node2 and self.node2 == other.node1)):
+            return self.weight == other.weight
+        else:
+            return False
