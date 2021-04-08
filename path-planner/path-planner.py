@@ -92,4 +92,9 @@ def find_path(algorithm: PathFinder, cur_pos, target_pos, graph, dist_threshold=
         raise ValueError("Current position does not correspond to any node on the graph")
     if target_node is None:
         raise ValueError("Target position does not correspond to any node on the graph")
-    return algorithm.find_path(cur_node, target_node, graph)
+
+    path = algorithm.find_path(cur_node, target_node, graph)
+    pt_path = np.empty(len(path))
+    for pt in path:
+        np.append(pt_path, node2point(pt, graph))
+    return pt_path
