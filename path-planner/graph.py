@@ -33,13 +33,7 @@ class Graph:
     def insert_node(self, name, pos, type=None):
         if self.V is None:
             self.V = {}
-
-        if type(pos) is list and len(pos) is 3:
-            pos = np.array(pos)
-        elif type(pos) is np.ndarray and len(pos) is 3:
-            pass
-        else:
-            raise ValueError("Position of new node is in an invalid format. Must be a list or numpy array of length 3")
+        pos = np.array(pos)
 
         self.V[name] = Node(name, pos, type)
 
@@ -66,7 +60,6 @@ class Edge:
         self.node2 = node2
         self.weight = weight
 
-    # must overload < and == operators to make a set
     def __lt__(self, other):
         if (self.node1 == other.node1 and self.node2 == other.node2) or \
                 (self.node1 == other.node2 and self.node2 == other.node1):
@@ -80,3 +73,6 @@ class Edge:
             return self.weight == other.weight
         else:
             return False
+
+    def __hash__(self):
+        return hash((self.node1, self.node2, self.weight))

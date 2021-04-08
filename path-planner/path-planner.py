@@ -69,7 +69,7 @@ def point2node(pt, graph, dist_threshold):
         pt = np.array(pt)
         
     for v in graph.V:
-        if np.linalg.norm(pt - graph.V[v]) <= dist_threshold:
+        if np.linalg.norm(pt - graph.V[v].pos) <= dist_threshold:
             return graph.V[v]
         
     return None
@@ -78,7 +78,7 @@ def point2node(pt, graph, dist_threshold):
 def node2point(name, graph):
     for v in graph.V:
         if name == v:
-            return graph[v].pos
+            return graph.V[v].pos
     return None
 
 
@@ -93,8 +93,14 @@ def find_path(algorithm: PathFinder, cur_pos, target_pos, graph, dist_threshold=
     if target_node is None:
         raise ValueError("Target position does not correspond to any node on the graph")
 
-    path = algorithm.find_path(cur_node, target_node, graph)
-    pt_path = np.empty(len(path))
-    for pt in path:
-        np.append(pt_path, node2point(pt, graph))
-    return pt_path
+    return algorithm.find_path(cur_node, target_node, graph)
+
+# for testing only
+if __name__ == '__main__':
+    filename = "venues\RoseBowl.yaml"
+    G = load_graph(filename)
+    start = node2point('C1', G)
+    target = node2point('D5', G)
+    alg = Dijkstra()
+    path = find_path(alg, start, target, G, 1)
+    print(path)
