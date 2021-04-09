@@ -23,6 +23,7 @@ class Dijkstra(PathFinder):
 
     def find_path(self, cur, target, graph):
         self.init_costs(cur, graph)
+        self.parents = {}
         adj_list = graph.graph_dict
         nextNode = cur.name
 
@@ -98,9 +99,14 @@ def find_path(algorithm: PathFinder, cur_pos, target_pos, graph, dist_threshold=
 # for testing only
 if __name__ == '__main__':
     filename = "venues\RoseBowl.yaml"
-    G = load_graph(filename)
-    start = node2point('C1', G)
-    target = node2point('D5', G)
-    alg = Dijkstra()
-    path = find_path(alg, start, target, G, 1)
-    print(path)
+    starts = ['C1', 'C3', 'C5', 'C7', 'C2', 'C4', 'C6', 'C8']
+    targets = ['D2', 'D4', 'D6', 'D1', 'D3', 'D5']
+
+    for s in starts:
+        for t in targets:
+            G = load_graph(filename)
+            alg = Dijkstra()
+            start = node2point(s, G)
+            target = node2point(t, G)
+            path = find_path(alg, start, target, G, 1)
+            print("Path from {} to {}: {}".format(s, t, path))
