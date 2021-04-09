@@ -85,13 +85,20 @@ class Controller_PID_Point2Point():
         # m3 = throttle - x_val + z_val
         # m4 = throttle - y_val - z_val
 
-        #x_roll, y_pith, z_yaw
+        #x_roll, y_pitch, z_yaw
         m1 = throttle + 2 * x_val - z_val
         m2 = throttle + x_val - np.sqrt(3) * y_val + z_val
         m3 = throttle - x_val - np.sqrt(3) * y_val - z_val
         m4 = throttle - 2 * x_val + z_val
         m5 = throttle - x_val + np.sqrt(3) * y_val - z_val
         m6 = throttle + x_val + np.sqrt(3) * y_val + z_val
+
+        # m1 = throttle + x_val + y_val - z_val
+        # m2 = throttle + x_val + z_val
+        # m3 = throttle + x_val - y_val - z_val
+        # m4 = throttle - x_val - y_val + z_val
+        # m5 = throttle - x_val - z_val
+        # m6 = throttle - x_val + y_val + z_val
         
         
        
