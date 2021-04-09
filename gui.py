@@ -37,13 +37,14 @@ class GUI():
         for key in self.quads:
             self.quads[key]['l1'], = self.ax.plot([],[],[],color='blue',linewidth=3,antialiased=False)
             self.quads[key]['l2'], = self.ax.plot([],[],[],color='red',linewidth=3,antialiased=False)
-            self.quads[key]['hub'], = self.ax.plot([],[],[],marker='o',color='green', markersize=6,antialiased=False)
+            self.quads[key]['l3'], = self.ax.plot([],[],[],color='green',linewidth=3,antialiased=False)
+            self.quads[key]['hub'], = self.ax.plot([],[],[],marker='o',color='black', markersize=6,antialiased=False)
 
     def update(self):
         for key in self.quads:
             R = self.rotation_matrix(self.quads[key]['orientation'])
             L = self.quads[key]['L']
-            points = np.array([ [-L,0,0], [L,0,0], [0,-L,0], [0,L,0], [0,0,0], [0,0,0] ]).T
+            points = np.array([ [math.cos(math.degrees(60))*-L,math.sin(math.degrees(60))*-L,0], [math.cos(math.degrees(60))*L,math.sin(math.degrees(60))*L,0], [math.cos(math.degrees(180))*-L,math.sin(math.degrees(180))*-L,0], [math.cos(math.degrees(180))*L,math.sin(math.degrees(180))*L,0], [0,-L,0], [0,L,0], [0,0,0], [0,0,0] ]).T
             points = np.dot(R,points)
             points[0,:] += self.quads[key]['position'][0]
             points[1,:] += self.quads[key]['position'][1]
@@ -52,8 +53,10 @@ class GUI():
             self.quads[key]['l1'].set_3d_properties(points[2,0:2])
             self.quads[key]['l2'].set_data(points[0,2:4],points[1,2:4])
             self.quads[key]['l2'].set_3d_properties(points[2,2:4])
-            self.quads[key]['hub'].set_data(points[0,5],points[1,5])
-            self.quads[key]['hub'].set_3d_properties(points[2,5])
+            self.quads[key]['l3'].set_data(points[0,4:6],points[1,4:6])
+            self.quads[key]['l3'].set_3d_properties(points[2,4:6])
+            self.quads[key]['hub'].set_data(points[0,7],points[1,7])
+            self.quads[key]['hub'].set_3d_properties(points[2,7])
         plt.pause(0.000000000000001)
 
     def keypress_routine(self,event):
