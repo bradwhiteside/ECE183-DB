@@ -2,6 +2,7 @@ import quadcopter,gui,controller
 import signal
 import sys
 import argparse
+import numpy as np
 
 # Constants
 TIME_SCALING = 1.0 # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
@@ -11,10 +12,12 @@ run = True
 
 def Single_Point2Point():
     # Set goals to go to
-    GOALS = [(1,1,2),(1,-1,4),(-1,-1,2),(-1,1,4)]
-    YAWS = [0,3.14,-1.54,1.54]
+    # GOALS = [(1,1,2),(1,-1,4),(-1,-1,2),(-1,1,4)]
+    GOALS = [(1,0,3), (1,0,4), (1,0,5)]
+    # YAWS = [0,3.14,-1.54,1.54]
+    YAWS = [np.pi/2, np.pi/2, np.pi]
     # Define the quadcopters
-    QUADCOPTER={'q1':{'position':[1,0,4],'orientation':[0,0,0],'L':0.3,'r':0.1,'prop_size':[10,4.5],'weight':1.2}}
+    QUADCOPTER={'q1':{'position':[1,0,4],'orientation':[0,0,0],'L':0.567,'r':0.2,'prop_size':[21,9.5],'weight':10}} #w in kg, L and r in mm, prop_size in in
     # Controller parameters
     CONTROLLER_PARAMETERS = {'Motor_limits':[4000,9000],
                         'Tilt_limits':[-10,10],
