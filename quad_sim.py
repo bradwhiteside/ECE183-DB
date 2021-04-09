@@ -13,13 +13,13 @@ run = True
 def Single_Point2Point():
     # Set goals to go to
     # GOALS = [(1,1,2),(1,-1,4),(-1,-1,2),(-1,1,4)]
-    GOALS = [(1,0.1,4)]
+    GOALS = [(1,0,4)]
     # YAWS = [0,3.14,-1.54,1.54]
     YAWS = [np.pi/2, np.pi/2, np.pi]
     # Define the quadcopters
     QUADCOPTER={'q1':{'position':[1,0,4],'orientation':[0,0,0],'L':0.567,'r':0.2,'prop_size':[21,9.5],'weight':10}} #w in kg, L and r in mm, prop_size in in
     # Controller parameters
-    CONTROLLER_PARAMETERS = {'Motor_limits':[4000,9000],
+    CONTROLLER_PARAMETERS = {'Motor_limits':[4000,11000],
                         'Tilt_limits':[-10,10],
                         'Yaw_Control_Limits':[-900,900],
                         'Z_XY_offset':500,
