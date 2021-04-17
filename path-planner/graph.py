@@ -19,8 +19,8 @@ class Graph:
     def construct_graph_dict(self):
         graph_dict = {}
 
-        for name in self.V:
-            graph_dict[name] = {}
+        for v in self.V:
+            graph_dict[v] = {}
 
         for e in self.E:
             if e.node2 not in graph_dict[e.node1]:
@@ -30,12 +30,10 @@ class Graph:
 
         self.graph_dict = graph_dict
 
-    def insert_node(self, name, pos, type=None):
+    def insert_node(self, pos, type=None):
         if self.V is None:
-            self.V = {}
-        pos = np.array(pos)
-
-        self.V[name] = Node(name, pos, type)
+            self.V = set()
+        self.V.add(Node(pos, type))
 
     def insert_edge(self, node1, node2, weight):
         if self.E is None:
@@ -44,14 +42,18 @@ class Graph:
 
 
 class Node:
-    def __init__(self, name, pos=None, type=None):
-        self.name = name
+    def __init__(self, pos=None, t=None):
+        if type(pos) is list:
+            pos = np.array(pos)
         self.pos = pos  # 3D
         # type = 0 means transit, = 1 means pick up, = 2 means drop off
-        self.type = type
+        self.type = t
 
     def __eq__(self, other):
-        return self.name == other.name
+        return (self.pos == other.pos).all()
+
+    def __hash__(self):
+        return hash((self.pos[0], self.pos[1], self.pos[2]))
 
 
 class Edge:
