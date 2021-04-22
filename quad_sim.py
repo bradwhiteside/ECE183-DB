@@ -14,7 +14,8 @@ run = True
 def Single_Point2Point(start, target, alt, map, DEBUG):
     # Set goals to go to
     a = A_star(map, DEBUG)
-    GOALS = a.find_path(start, target, alt)
+    GOALS, path_cost = a.find_path(start, target, alt)
+
     # Define the quadcopters
     QUADCOPTER = {'q1': {'position': [1, 0, 4], 'orientation': [0, 0, 0], 'L': 0.3, 'r': 0.1, 'prop_size': [10, 4.5],
                          'weight': 1.2}}
@@ -156,12 +157,12 @@ def parse_args():
                         help='delta time for quadcopter dynamics update(seconds), ex: --quad_update_time 0.002')
     parser.add_argument("--controller_update_time", type=float, default=0.0,
                         help='delta time for controller update(seconds), ex: --controller_update_time 0.005')
-    parser.add_argument("--start", help='Starting point for simulation', required='--sim' in sys.argv,
-                        usage="%(prog)s --sim [sim_arg] --start X1 Y1 Z1 --target X2 Y2 Z2", nargs=3, type=int)
-    parser.add_argument("--target", help='Target point for simulation', required='--sim' in sys.argv,
-                        usage="%(prog)s --sim [sim_arg] --start X1 Y1 Z1 --target X2 Y2 Z2", nargs=3, type=int)
-    parser.add_argument("--map", help='Name of map image for the path planner', required='--sim' in sys.argv,
-                        usage="%(prog)s [options] --map venues\Coachella\CoachellaMap.png", type=str)
+    parser.add_argument("--start", help='Starting point for simulation\n usafe=%(prog)s --sim [sim_arg] --start X1 Y1 Z1 --target X2 Y2 Z2',
+                        required='--sim' in sys.argv, nargs=3, type=int)
+    parser.add_argument("--target", help='Target point for simulation\n usage=%(prog)s --sim [sim_arg] --start X1 Y1 Z1 --target X2 Y2 Z2',
+                        required='--sim' in sys.argv, nargs=3, type=int)
+    parser.add_argument("--map", help='Name of map image for the path planner\n usage=%(prog)s [options] --map venues\Coachella\CoachellaMap.png',
+                        required='--sim' in sys.argv, type=str)
     parser.add_argument("--alt", help='Relative altitude for simulation', type=int, default=10)
     parser.add_argument("--DEBUG", action='store_true')
 
@@ -181,7 +182,13 @@ if __name__ == "__main__":
     if args.quad_update_time > 0: QUAD_DYNAMICS_UPDATE = args.quad_update_time
     if args.controller_update_time > 0: CONTROLLER_DYNAMICS_UPDATE = args.controller_update_time
     if args.sim == 'single_p2p':
-        Single_Point2Point(args.start, args.target, args.alt, args.map, args.DEBUG)
+        if args.map[0] == 'R':
+            map = "path_planner\\venues\\RoseBowl\\RoseBowlMap.png"
+        elif args.map[0] == 'C':
+            map = "path_planner\\venues\\Coachella\\CoachellaMap.png"
+        else:
+            map = "path_planner\\venues\\Test\\Test.png"
+        Single_Point2Point(args.start, args.target, args.alt, map, args.DEBUG)
     elif args.sim == 'multi_p2p':
         Multi_Point2Point()
     elif args.sim == 'single_velocity':

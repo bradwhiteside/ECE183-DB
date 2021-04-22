@@ -1,6 +1,6 @@
 import yaml
-from graph import Graph, Node
-from grid import Grid
+from path_planner.graph import Graph, Node
+from path_planner.grid import Grid
 import numpy as np
 import cv2
 from queue import PriorityQueue
@@ -90,6 +90,8 @@ class Dijkstra(PathFinder):
 # Based off https://github.com/alpesis-robotics/drone-planner
 class A_star(PathFinder):
     def __init__(self, image_name, DEBUG=False):
+        self.image = image_name
+        self.DEBUG = DEBUG
         self.grid = Grid(image_name, DEBUG)
 
     def h1(self, cur, target):
@@ -170,7 +172,13 @@ class A_star(PathFinder):
             n = branch[n][1]
         path.append(branch[n][1].pos)
 
-        return self.prune_path(path[::-1]), path_cost
+        pruned_path = self.prune_path(path[::-1])
+        if self.DEBUG:
+            path_image = draw_path(self.image, pruned_path)
+            path_image_name = self.image[:-4] + "Path.png"
+            cv2.imwrite(path_image_name, path_image)
+
+        return pruned_path, path_cost
 
 
 def draw_path(image_name, path):
@@ -178,20 +186,19 @@ def draw_path(image_name, path):
     img = cv2.imread(image_name, cv2.IMREAD_UNCHANGED)
     color = (0, 255, 255, 255)  # yellow
     for i in range(length-1):
-        img = cv2.line(img, (path[i][0], path[i][1]), (path[i+1][0], path[i+1][1]), color, 3)
+        img = cv2.line(img, (path[i][0], path[i][1]), (path[i+1][0], path[i+1][1]), color, 4)
     return img
 
 
 if __name__ == '__main__':
-    map_image = "venues\Coachella\CoachellaMap.png"
-    orig_image = "venues\Coachella\CoachellaOrig.png"
+    map_image = "venues\Test\Test.png"
     a = A_star(map_image, True)
-    path, cost = a.find_path((1515, 547), (666, 1391))
+    path, cost = a.find_path((19,24), (211, 20))
     print("Path cost: %d" % cost)
     print(path)
 
-    path_image = draw_path(orig_image, path)
-    cv2.imwrite("venues\Coachella\CoachellaPath.png", path_image)
+    #path_image = draw_path(map_image, path)
+    #cv2.imwrite("venues\Test\TestPath.png", path_image)
     exit(0)
 
 
