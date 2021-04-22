@@ -1,0 +1,121 @@
+Nodes:
+  C1:
+    pos:
+      [3, 11, 0]
+    type: concession
+  C2:
+    pos:
+      [18, 2, 0]
+    type: concession
+  C3:
+    pos:
+      [5, 25, 0]
+    type: concession
+  C4:
+    pos:
+      [11, 28, 0]
+    type: concession
+  C5:
+    pos:
+      [18, 27, 0]
+    type: concession
+  C6:
+    pos:
+      [24, 20, 0]
+    type: concession
+  C7:
+    pos:
+      [25, 12, 0]
+    type: concession
+  C8:
+    pos:
+      [22, 7, 0]
+    type: concession
+  T1:
+    pos:
+      [8, 7, 10]
+    type: transit
+  T2:
+    pos:
+      [25, 8, 10]
+    type: transit
+  T3:
+    pos:
+      [25, 19, 10]
+    type: transit
+  T4:
+    pos:
+      [16, 23, 10]
+    type: transit
+  T5:
+    pos:
+      [20, 7, 10]
+    type: transit
+  D1:
+    pos:
+      [10, 10, 0]
+    type: destination
+  D2:
+    pos:
+      [8, 16, 0]
+    type: destination
+  D3:
+    pos:
+      [10, 22, 0]
+    type: destination
+  D4:
+    pos:
+      [17, 22, 0]
+    type: destination
+  D5:
+    pos:
+      [19, 16, 0]
+    type: destination
+  D6:
+    pos:
+      [17, 10, 0]
+    type: destination
+
+Edges:
+  C1:
+    C2: 3
+    T1: 3
+  C2:
+    C3: 3
+  C3:
+    T2: 1
+  C4:
+    T2: 2
+    C5: 3
+  C5:
+    T3: 1
+  C6:
+    T3: 3
+    T4: 2
+  C7:
+    T4: 2
+    C8: 2
+  C8:
+    T5: 1
+  T1:
+    D1: 2
+    T5: 5
+  T2:
+    D3: 2
+  T3:
+    D4: 2
+  T4:
+    D5: 2
+  T5:
+    D6: 2
+  D1:
+    D6: 20
+    D2: 20
+  D2:
+    D3: 20
+  D3:
+    D4: 20
+  D4:
+    D5: 20
+  D5:
+    D6: 20
