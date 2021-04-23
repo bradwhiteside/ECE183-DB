@@ -52,44 +52,59 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     output_file_name = "outputs/" + map.split('/')[2] + "_path_data.csv"
     output_file = open(output_file_name, 'w', buffering=65536)
     path_taken = []
-    estimated_path =[]
+    estimated_path = []
+    path_error = np.empty((0, 3), float)
     t = 0
-    limit = 40
-    while (run == True and t < limit):
-        for goal in GOALS:
-            ctrl.update_target(goal)
-            while run == True and t < limit:
-                pos = quad.get_position('q1')
-                est_pos = est.get_estimated_state()[0:3]
-                print(pos-est_pos)
-                # gui_object.quads['q1']['position'] = pos
-                # gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
-                # gui_object.update()
-                dist = np.linalg.norm(np.array(pos) - goal)
-                t = (quad.get_time()-start_time).total_seconds()
-                path_taken.append(pos)
-                estimated_path.append(est_pos)
-                output_str = '{} {} {} {}\n'.format(t, pos[0], pos[1], pos[2])
-                output_file.write(output_str)
-                # print("Time: {}\tGoal is {}\tCurrent position is {}\t Dist = {}".format(t, goal, pos, dist))
-                if dist < 2:
-                    break
-            output_file.flush()
+    limit = 10
+    for goal in GOALS:
+        ctrl.update_target(goal)
+        while True:
+            t = (quad.get_time()-start_time).total_seconds()
+            pos = np.array(quad.get_position('q1'))
+            est_pos = np.array(est.get_estimated_state()[0:3])
+            dist = np.linalg.norm(est_pos - goal)
+            error = pos - est_pos
 
-    # print("true path len",len(path_taken))
-    # print("est pth len",len(estimated_path))
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.invert_yaxis()
-    ax.set_xticks(range(256)[::16])
-    ax.set_yticks(range(256)[::16])
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
+            # gui_object.quads['q1']['position'] = pos
+            # gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
+            # gui_object.update()
 
+            path_taken.append(pos)
+            estimated_path.append(est_pos)
+            path_error = np.append(path_error, np.array([error]), axis=0)
+
+            output_str = '{:.3f}'.format(t)
+            for e in est_pos: output_str += ' {:.3f}'.format(e)
+            for e in error: output_str += ' {:.3f}'.format(e)
+            output_str += '\n'
+            output_file.write(output_str)
+            # print("Time: {}\tGoal is {}\tCur pos is {}\tEst pos is {}\t Dist = {}".format(t, goal, pos, est_pos, dist))
+
+            if dist < 2:
+                break
+
+        output_file.flush()
+
+    fig1, ax1 = plt.subplots()
+    ax1.invert_yaxis()
+    ax1.set_xticks(range(256)[::32])
+    ax1.set_yticks(range(256)[::-32])
+    ax1.set_xlabel('x')
+    ax1.set_ylabel('y')
     img1 = pp.draw_path(map, GOALS, (255, 255, 0, 255))  # yellow
     img2 = pp.draw_path(img1, estimated_path, (255, 0, 255, 255), True)  # pink
-    # img3 = pp.draw_path(img1, estimated_path, (250, 0, 250, 250), True)
-    ax.imshow(img2, extent=[0, 256, 0, 256])
+    ax1.imshow(img2, extent=[0, 256, 0, 256])
+    plt.savefig("outputs/" + map.split('/')[2] + "_path.jpg")
+
+    fig2, axs2 = plt.subplots(3, 1)
+    time = np.linspace(0, t, len(path_error))
+    axs2[0].plot(time, path_error[:, 0])
+    axs2[0].title.set_text("X error")
+    axs2[1].plot(time, path_error[:, 1])
+    axs2[1].title.set_text("Y error")
+    axs2[2].plot(time, path_error[:, 2])
+    axs2[2].title.set_text("Z error")
+    plt.savefig("outputs/" + map.split('/')[2] + "_error.jpg")
 
     plt.show()
 
