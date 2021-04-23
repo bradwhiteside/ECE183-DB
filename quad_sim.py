@@ -1,8 +1,10 @@
 import quadcopter, gui, controller
 import signal
 import sys
+import datetime
 import argparse
 from path_planner.path_planner import A_star
+import numpy as np
 
 # Constants
 TIME_SCALING = 1.0  # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
@@ -17,14 +19,14 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     GOALS, path_cost = a.find_path(start, target, alt)
 
     # Define the quadcopters
-    QUADCOPTER = {'q1': {'position': [1, 0, 4], 'orientation': [0, 0, 0], 'L': 0.3, 'r': 0.1, 'prop_size': [10, 4.5],
+    QUADCOPTER = {'q1': {'position': start, 'orientation': [0, 0, 0], 'L': 0.3, 'r': 0.1, 'prop_size': [10, 4.5],
                          'weight': 1.2}}
     # Controller parameters
     CONTROLLER_PARAMETERS = {'Motor_limits': [4000, 9000],
                              'Tilt_limits': [-10, 10],
                              'Yaw_Control_Limits': [-900, 900],
                              'Z_XY_offset': 500,
-                             'Linear_PID': {'P': [300, 300, 7000], 'I': [0.04, 0.04, 4.5], 'D': [450, 450, 5000]},
+                             'Linear_PID': {'P': [400, 400, 7000], 'I': [0.04, 0.04, 4.5], 'D': [2000, 2000, 5000]},
                              'Linear_To_Angular_Scaler': [1, 1, 0],
                              'Yaw_Rate_Scaler': 0.18,
                              'Angular_PID': {'P': [22000, 22000, 1500], 'I': [0, 0, 1.2], 'D': [12000, 12000, 0]},
@@ -39,15 +41,29 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
                                                  params=CONTROLLER_PARAMETERS, quad_identifier='q1')
     # Start the threads
     quad.start_thread(dt=QUAD_DYNAMICS_UPDATE, time_scaling=TIME_SCALING)
+    start_time = datetime.datetime.now()
     ctrl.start_thread(update_rate=CONTROLLER_DYNAMICS_UPDATE, time_scaling=TIME_SCALING)
     # Update the GUI while switching between destination poitions
+    output_file_name = "outputs\\" + map.split('\\')[2] + "_path_data.csv"
+    output_file = open(output_file_name, 'w', buffering=65536)
     while (run == True):
         for goal in GOALS:
             ctrl.update_target(goal)
-            for i in range(300):
-                gui_object.quads['q1']['position'] = quad.get_position('q1')
+            while run == True:
+                pos = quad.get_position('q1')
+                gui_object.quads['q1']['position'] = pos
                 gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
                 gui_object.update()
+                dist = np.linalg.norm(np.array(pos) - goal)
+                t = (quad.get_time()-start_time).total_seconds()
+                output_str = '{} {} {} {}\n'.format(t, pos[0], pos[1], pos[2])
+                output_file.write(output_str)
+                # print("Time: {}\tGoal is {}\tCurrent position is {}\t Dist = {}".format(t, goal, pos, dist))
+                if dist < 1:
+                    break
+            output_file.flush()
+
+    output_file.close()
     quad.stop_thread()
     ctrl.stop_thread()
 
