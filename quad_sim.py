@@ -12,7 +12,7 @@ TIME_SCALING = 1.0  # Any positive number(Smaller is faster). 1.0->Real Time, 0.
 QUAD_DYNAMICS_UPDATE = 0.002  # seconds
 CONTROLLER_DYNAMICS_UPDATE = 0.005  # seconds
 ESTIMATION_TIME_UPDATE = 0.005
-ESTIMATION_OBSERVATION_UPDATE = 0.01
+ESTIMATION_OBSERVATION_UPDATE = 0.1
 run = True
 
 
@@ -55,10 +55,10 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     estimated_path = []
     path_error = np.empty((0, 3), float)
     t = 0
-    limit = 10
+    limit = 5
     for goal in GOALS:
         ctrl.update_target(goal)
-        while True:
+        while t < limit or True:
             t = (quad.get_time()-start_time).total_seconds()
             pos = np.array(quad.get_position('q1'))
             est_pos = np.array(est.get_estimated_state()[0:3])
@@ -85,18 +85,21 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
 
         output_file.flush()
 
-    fig1, ax1 = plt.subplots()
+    fig1, ax1 = plt.subplots(figsize=(8, 8))
     ax1.invert_yaxis()
     ax1.set_xticks(range(256)[::32])
     ax1.set_yticks(range(256)[::-32])
     ax1.set_xlabel('x')
     ax1.set_ylabel('y')
     img1 = pp.draw_path(map, GOALS, (255, 255, 0, 255))  # yellow
-    img2 = pp.draw_path(img1, estimated_path, (255, 0, 255, 255), True)  # pink
+    ax1.imshow(img1, extent=[0, 256, 0, 256])
+    plt.savefig("outputs/" + map.split('/')[2] + "_computed_path.jpg")
+    img2 = pp.draw_path(img1, estimated_path, (255, 0, 255, 255))  # pink
     ax1.imshow(img2, extent=[0, 256, 0, 256])
-    plt.savefig("outputs/" + map.split('/')[2] + "_path.jpg")
+    plt.savefig("outputs/" + map.split('/')[2] + "_path_taken.jpg")
 
-    fig2, axs2 = plt.subplots(3, 1)
+    fig2, axs2 = plt.subplots(3, 1, figsize=(12, 8))
+    fig2.suptitle('Errors in state estimation')
     time = np.linspace(0, t, len(path_error))
     axs2[0].plot(time, path_error[:, 0])
     axs2[0].title.set_text("X error")
@@ -104,6 +107,7 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     axs2[1].title.set_text("Y error")
     axs2[2].plot(time, path_error[:, 2])
     axs2[2].title.set_text("Z error")
+    plt.subplots_adjust(hspace=0.4, bottom=0.07, left=0.095, right=0.95)
     plt.savefig("outputs/" + map.split('/')[2] + "_error.jpg")
 
     plt.show()

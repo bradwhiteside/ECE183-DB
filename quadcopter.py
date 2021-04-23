@@ -42,19 +42,19 @@ class Quadcopter():
             self.linear_accelerations = [0,0,self.g]
             
             #IMU
-            self.accl_x_std = 0.1                   
-            self.accl_y_std = 0.1            
-            self.accl_z_std = 0.1
+            self.accl_x_std = 3e-4
+            self.accl_y_std = 3e-4
+            self.accl_z_std = 3e-4
 
             #Gyro
-            self.gyro_x_std = 0.1                   
-            self.gyro_y_std = 0.1             
-            self.gyro_z_std = 0.1
+            self.gyro_x_std = 4e-3
+            self.gyro_y_std = 4e-3
+            self.gyro_z_std = 4e-3
 
             #GPS
-            self.gps_x_std = 0.6                 
-            self.gps_y_std = 0.6           
-            self.gps_z_std = 0.6
+            self.gps_x_std = 1.25
+            self.gps_y_std = 1.25
+            self.gps_z_std = 0.1
 
            
             M = np.diag([self.accl_x_std, self.accl_x_std,self.accl_x_std]) **2
