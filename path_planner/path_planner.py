@@ -181,13 +181,16 @@ class A_star(PathFinder):
         return pruned_path, path_cost
 
 
-def draw_path(image_name, path):
+def draw_path(image, path, color=(0, 255, 255, 255), fade=False):
     length = len(path)
-    img = cv2.imread(image_name, cv2.IMREAD_UNCHANGED)
-    color = (0, 255, 255, 255)  # yellow
+    if type(image) is str:
+        image = cv2.imread(image, cv2.IMREAD_UNCHANGED)
+    thickness = 5 if 5 < image.shape[0]//128 else image.shape[0]//128
     for i in range(length-1):
-        img = cv2.line(img, (path[i][0], path[i][1]), (path[i+1][0], path[i+1][1]), color, 4)
-    return img
+        if fade:
+            color = (color[0], color[1], color[2], int((i / length)*196) + 64)
+        image = cv2.line(image, (int(path[i][0]), int(path[i][1])), (int(path[i+1][0]), int(path[i+1][1])), color, thickness)
+    return image
 
 
 if __name__ == '__main__':

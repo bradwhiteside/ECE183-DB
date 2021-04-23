@@ -3,11 +3,12 @@ import signal
 import sys
 import datetime
 import argparse
-from path_planner.path_planner import A_star
+import path_planner.path_planner as pp
 import numpy as np
+import matplotlib.pyplot as plt
 
 # Constants
-TIME_SCALING = 1.0  # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
+TIME_SCALING = 0.0  # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
 QUAD_DYNAMICS_UPDATE = 0.002  # seconds
 CONTROLLER_DYNAMICS_UPDATE = 0.005  # seconds
 run = True
@@ -15,7 +16,7 @@ run = True
 
 def Single_Point2Point(start, target, alt, map, DEBUG):
     # Set goals to go to
-    a = A_star(map, DEBUG)
+    a = pp.A_star(map, DEBUG)
     GOALS, path_cost = a.find_path(start, target, alt)
 
     # Define the quadcopters
@@ -26,7 +27,7 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
                              'Tilt_limits': [-10, 10],
                              'Yaw_Control_Limits': [-900, 900],
                              'Z_XY_offset': 500,
-                             'Linear_PID': {'P': [400, 400, 7000], 'I': [0.04, 0.04, 4.5], 'D': [2000, 2000, 5000]},
+                             'Linear_PID': {'P': [800, 800, 7000], 'I': [0, 0, 4.5], 'D': [7000, 7000, 5000]},
                              'Linear_To_Angular_Scaler': [1, 1, 0],
                              'Yaw_Rate_Scaler': 0.18,
                              'Angular_PID': {'P': [22000, 22000, 1500], 'I': [0, 0, 1.2], 'D': [12000, 12000, 0]},
@@ -36,7 +37,7 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     signal.signal(signal.SIGINT, signal_handler)
     # Make objects for quadcopter, gui and controller
     quad = quadcopter.Quadcopter(QUADCOPTER)
-    gui_object = gui.GUI(quads=QUADCOPTER)
+    # gui_object = gui.GUI(quads=QUADCOPTER)
     ctrl = controller.Controller_PID_Point2Point(quad.get_state, quad.get_time, quad.set_motor_speeds,
                                                  params=CONTROLLER_PARAMETERS, quad_identifier='q1')
     # Start the threads
@@ -46,22 +47,40 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     # Update the GUI while switching between destination poitions
     output_file_name = "outputs\\" + map.split('\\')[2] + "_path_data.csv"
     output_file = open(output_file_name, 'w', buffering=65536)
-    while (run == True):
+    path_taken = []
+    t = 0
+    limit = 40
+    while (run == True and t < limit):
         for goal in GOALS:
             ctrl.update_target(goal)
-            while run == True:
+            while run == True and t < limit:
                 pos = quad.get_position('q1')
-                gui_object.quads['q1']['position'] = pos
-                gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
-                gui_object.update()
+                # gui_object.quads['q1']['position'] = pos
+                # gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
+                # gui_object.update()
                 dist = np.linalg.norm(np.array(pos) - goal)
                 t = (quad.get_time()-start_time).total_seconds()
+                path_taken.append(pos)
                 output_str = '{} {} {} {}\n'.format(t, pos[0], pos[1], pos[2])
                 output_file.write(output_str)
                 # print("Time: {}\tGoal is {}\tCurrent position is {}\t Dist = {}".format(t, goal, pos, dist))
-                if dist < 1:
+                if dist < 2:
                     break
             output_file.flush()
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.invert_yaxis()
+    ax.set_xticks(range(256)[::16])
+    ax.set_yticks(range(256)[::16])
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+
+    img1 = pp.draw_path(map, GOALS, (255, 255, 0, 255))  # yellow
+    img2 = pp.draw_path(img1, path_taken, (255, 0, 255, 255), True)  # pink
+    ax.imshow(img2, extent=[0, 256, 0, 256])
+
+    plt.show()
 
     output_file.close()
     quad.stop_thread()
