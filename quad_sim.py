@@ -1,4 +1,4 @@
-import quadcopter, gui, controller
+import quadcopter, gui, controller, estimator
 import signal
 import sys
 import datetime
@@ -8,9 +8,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Constants
-TIME_SCALING = 0.0  # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
+TIME_SCALING = 1.0  # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
 QUAD_DYNAMICS_UPDATE = 0.002  # seconds
 CONTROLLER_DYNAMICS_UPDATE = 0.005  # seconds
+ESTIMATION_TIME_UPDATE = 0.005
+ESTIMATION_OBSERVATION_UPDATE = 0.01
 run = True
 
 
@@ -38,16 +40,19 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     # Make objects for quadcopter, gui and controller
     quad = quadcopter.Quadcopter(QUADCOPTER)
     # gui_object = gui.GUI(quads=QUADCOPTER)
+    est = estimator.EKF(quad.get_time, quad.get_position,quad.get_linear_rate, quad.get_linear_accelertaions, quad.get_IMU_accelertaions, quad.get_orientation, quad.get_Gyro, quad.get_state, quad.get_motor_speeds,quad.get_covariances, quad.get_GPS, params=CONTROLLER_PARAMETERS, quads=QUADCOPTER, quad_identifier='q1')
     ctrl = controller.Controller_PID_Point2Point(quad.get_state, quad.get_time, quad.set_motor_speeds,
                                                  params=CONTROLLER_PARAMETERS, quad_identifier='q1')
     # Start the threads
     quad.start_thread(dt=QUAD_DYNAMICS_UPDATE, time_scaling=TIME_SCALING)
     start_time = datetime.datetime.now()
     ctrl.start_thread(update_rate=CONTROLLER_DYNAMICS_UPDATE, time_scaling=TIME_SCALING)
+    est.start_thread(time_update_rate=ESTIMATION_TIME_UPDATE, observation_update_rate = ESTIMATION_OBSERVATION_UPDATE ,time_scaling=TIME_SCALING)
     # Update the GUI while switching between destination poitions
-    output_file_name = "outputs\\" + map.split('\\')[2] + "_path_data.csv"
+    output_file_name = "outputs/" + map.split('/')[2] + "_path_data.csv"
     output_file = open(output_file_name, 'w', buffering=65536)
     path_taken = []
+    estimated_path =[]
     t = 0
     limit = 40
     while (run == True and t < limit):
@@ -55,12 +60,15 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
             ctrl.update_target(goal)
             while run == True and t < limit:
                 pos = quad.get_position('q1')
+                est_pos = est.get_estimated_state()[0:3]
+                print(pos-est_pos)
                 # gui_object.quads['q1']['position'] = pos
                 # gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
                 # gui_object.update()
                 dist = np.linalg.norm(np.array(pos) - goal)
                 t = (quad.get_time()-start_time).total_seconds()
                 path_taken.append(pos)
+                estimated_path.append(est_pos)
                 output_str = '{} {} {} {}\n'.format(t, pos[0], pos[1], pos[2])
                 output_file.write(output_str)
                 # print("Time: {}\tGoal is {}\tCurrent position is {}\t Dist = {}".format(t, goal, pos, dist))
@@ -68,6 +76,8 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
                     break
             output_file.flush()
 
+    # print("true path len",len(path_taken))
+    # print("est pth len",len(estimated_path))
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.invert_yaxis()
@@ -77,7 +87,8 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     ax.set_ylabel('y')
 
     img1 = pp.draw_path(map, GOALS, (255, 255, 0, 255))  # yellow
-    img2 = pp.draw_path(img1, path_taken, (255, 0, 255, 255), True)  # pink
+    img2 = pp.draw_path(img1, estimated_path, (255, 0, 255, 255), True)  # pink
+    # img3 = pp.draw_path(img1, estimated_path, (250, 0, 250, 250), True)
     ax.imshow(img2, extent=[0, 256, 0, 256])
 
     plt.show()
@@ -85,6 +96,7 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     output_file.close()
     quad.stop_thread()
     ctrl.stop_thread()
+    est.stop_thread()
 
 
 def Multi_Point2Point():
@@ -196,7 +208,7 @@ def parse_args():
                         required='--sim' in sys.argv, nargs=3, type=int)
     parser.add_argument("--target", help='Target point for simulation\n usage=%(prog)s --sim [sim_arg] --start X1 Y1 Z1 --target X2 Y2 Z2',
                         required='--sim' in sys.argv, nargs=3, type=int)
-    parser.add_argument("--map", help='Name of map image for the path planner\n usage=%(prog)s [options] --map venues\Coachella\CoachellaMap.png',
+    parser.add_argument("--map", help='Name of map image for the path planner\n usage=%(prog)s [options] --map venues/Coachella/CoachellaMap.png',
                         required='--sim' in sys.argv, type=str)
     parser.add_argument("--alt", help='Relative altitude for simulation', type=int, default=10)
     parser.add_argument("--DEBUG", action='store_true')
@@ -218,11 +230,11 @@ if __name__ == "__main__":
     if args.controller_update_time > 0: CONTROLLER_DYNAMICS_UPDATE = args.controller_update_time
     if args.sim == 'single_p2p':
         if args.map[0] == 'R':
-            map = "path_planner\\venues\\RoseBowl\\RoseBowlMap.png"
+            map = "path_planner/venues/RoseBowl/RoseBowlMap.png"
         elif args.map[0] == 'C':
-            map = "path_planner\\venues\\Coachella\\CoachellaMap.png"
+            map = "path_planner/venues/Coachella/CoachellaMap.png"
         else:
-            map = "path_planner\\venues\\Test\\Test.png"
+            map = "path_planner/venues/Test/Test.png"
         Single_Point2Point(args.start, args.target, args.alt, map, args.DEBUG)
     elif args.sim == 'multi_p2p':
         Multi_Point2Point()

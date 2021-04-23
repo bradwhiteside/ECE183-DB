@@ -39,10 +39,33 @@ class Quadcopter():
             self.quads[key]['m2'] = Propeller(self.quads[key]['prop_size'][0],self.quads[key]['prop_size'][1])
             self.quads[key]['m3'] = Propeller(self.quads[key]['prop_size'][0],self.quads[key]['prop_size'][1])
             self.quads[key]['m4'] = Propeller(self.quads[key]['prop_size'][0],self.quads[key]['prop_size'][1])
+            self.linear_accelerations = [0,0,self.g]
+            
+            #IMU
+            self.accl_x_std = 0.1                   
+            self.accl_y_std = 0.1            
+            self.accl_z_std = 0.1
+
+            #Gyro
+            self.gyro_x_std = 0.1                   
+            self.gyro_y_std = 0.1             
+            self.gyro_z_std = 0.1
+
+            #GPS
+            self.gps_x_std = 0.6                 
+            self.gps_y_std = 0.6           
+            self.gps_z_std = 0.6
+
+           
+            M = np.diag([self.accl_x_std, self.accl_x_std,self.accl_x_std]) **2
+            self.Q = M
+            self.R = np.diag([self.gps_x_std, self.gps_x_std,self.gps_x_std]) **2
+
             # From Quadrotor Dynamics and Control by Randal Beard
             ixx=((2*self.quads[key]['weight']*self.quads[key]['r']**2)/5)+(2*self.quads[key]['weight']*self.quads[key]['L']**2)
             iyy=ixx
             izz=((2*self.quads[key]['weight']*self.quads[key]['r']**2)/5)+(4*self.quads[key]['weight']*self.quads[key]['L']**2)
+            print("ixx, iyy, izz", ixx, iyy, izz)
             self.quads[key]['I'] = np.array([[ixx,0,0],[0,iyy,0],[0,0,izz]])
             self.quads[key]['invI'] = np.linalg.inv(self.quads[key]['I'])
         self.run = True
@@ -60,6 +83,18 @@ class Quadcopter():
         R = np.dot(R_z, np.dot( R_y, R_x ))
         return R
 
+    def rotation_matrix_in_to_bd(self,angles):
+        ct = math.cos(angles[0])
+        cp = math.cos(angles[1])
+        cs = math.cos(angles[2])
+        st = math.sin(angles[0])
+        sp = math.sin(angles[1])
+        ss = math.sin(angles[2])
+        R = np.array([[cp*cs-ct*sp*ss, -cs*sp-cp*ct*ss, st*ss], 
+                      [ct*cs*sp+cp*ss,  cp*ct*cs-sp*ss, -cs*st],
+                      [sp*st,           cp*st,          ct    ]])
+        return R
+    
     def wrap_angle(self,val):
         return( ( val + np.pi) % (2 * np.pi ) - np.pi )
 
@@ -70,10 +105,12 @@ class Quadcopter():
         state_dot[1] = self.quads[key]['state'][4]
         state_dot[2] = self.quads[key]['state'][5]
         # The acceleration
-        x_dotdot = np.array([0,0,-self.quads[key]['weight']*self.g]) + np.dot(self.rotation_matrix(self.quads[key]['state'][6:9]),np.array([0,0,(self.quads[key]['m1'].thrust + self.quads[key]['m2'].thrust + self.quads[key]['m3'].thrust + self.quads[key]['m4'].thrust)]))/self.quads[key]['weight']
+        x_dotdot = np.array([0,0,-1*self.g]) + np.dot(self.rotation_matrix(self.quads[key]['state'][6:9]), np.array([0,0,(self.quads[key]['m1'].thrust + self.quads[key]['m2'].thrust + self.quads[key]['m3'].thrust + self.quads[key]['m4'].thrust)]))/self.quads[key]['weight']
         state_dot[3] = x_dotdot[0]
         state_dot[4] = x_dotdot[1]
         state_dot[5] = x_dotdot[2]
+
+        self.linear_accelerations = np.array([x_dotdot[0], x_dotdot[1], x_dotdot[2]])
         # The angular rates(t+1 theta_dots equal the t theta_dots)
         state_dot[6] = self.quads[key]['state'][9]
         state_dot[7] = self.quads[key]['state'][10]
@@ -100,11 +137,39 @@ class Quadcopter():
         self.quads[quad_name]['m3'].set_speed(speeds[2])
         self.quads[quad_name]['m4'].set_speed(speeds[3])
 
+    def get_motor_speeds(self, quad_name):
+        m1 = self.quads[quad_name]['m1'].speed
+        m2 = self.quads[quad_name]['m2'].speed
+        m3 = self.quads[quad_name]['m2'].speed
+        m4 = self.quads[quad_name]['m2'].speed
+        M = [m1,m2,m3,m4]
+        return M
+
+
+    def get_GPS(self,quad_name):
+        gps_std = [self.gps_x_std, self.gps_y_std, self.gps_z_std]
+        return np.random.normal(self.quads[quad_name]['state'][0:3], gps_std)
+    
+    def get_Gyro(self,quad_name):
+        angular_rate_std = [self.gyro_x_std, self.gyro_y_std, self.gyro_z_std]
+        return np.random.normal(self.quads[quad_name]['state'][9:12], angular_rate_std)
+
     def get_position(self,quad_name):
         return self.quads[quad_name]['state'][0:3]
 
     def get_linear_rate(self,quad_name):
         return self.quads[quad_name]['state'][3:6]
+
+    #These accelarations are wrt. inertial coordinates
+    def get_linear_accelertaions(self, quad_name):
+        accel_std = [self.accl_x_std, self.accl_y_std, self.accl_z_std]
+        return np.random.normal(self.linear_accelerations, accel_std)
+
+    def get_IMU_accelertaions(self, quad_name):
+        R_inv = self.rotation_matrix_in_to_bd(self.quads[quad_name]['state'][6:9])
+        return R_inv @ self.linear_accelerations
+
+
 
     def get_orientation(self,quad_name):
         return self.quads[quad_name]['state'][6:9]
@@ -114,6 +179,10 @@ class Quadcopter():
 
     def get_state(self,quad_name):
         return self.quads[quad_name]['state']
+
+    def get_covariances(self, quad_name):
+        return self.Q, self.R
+
 
     def set_position(self,quad_name,position):
         self.quads[quad_name]['state'][0:3] = position
