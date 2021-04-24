@@ -4,10 +4,11 @@ import time
 import threading
 
 class Controller_PID_Point2Point():
-    def __init__(self, get_state, get_time, actuate_motors, params, quad_identifier):
+    def __init__(self, get_state, get_time, actuate_motors, get_estimated_state, params, quad_identifier):
         self.quad_identifier = quad_identifier
         self.actuate_motors = actuate_motors
         self.get_state = get_state
+        self.get_estimated_state = get_estimated_state
         self.get_time = get_time
         self.MOTOR_LIMITS = params['Motor_limits']
         self.TILT_LIMITS = [(params['Tilt_limits'][0]/180.0)*3.14,(params['Tilt_limits'][1]/180.0)*3.14]
@@ -37,7 +38,9 @@ class Controller_PID_Point2Point():
 
     def update(self):
         [dest_x,dest_y,dest_z] = self.target
-        [x,y,z,x_dot,y_dot,z_dot,theta,phi,gamma,theta_dot,phi_dot,gamma_dot] = self.get_state(self.quad_identifier)
+        # [x,y,z,x_dot,y_dot,z_dot,theta,phi,gamma,theta_dot,phi_dot,gamma_dot] = self.get_state(self.quad_identifier)
+        [x,y,z,x_dot,y_dot,z_dot,theta,phi,gamma,theta_dot,phi_dot,gamma_dot] = self.get_estimated_state(self.quad_identifier) 
+
         x_error = dest_x-x
         y_error = dest_y-y
         z_error = dest_z-z

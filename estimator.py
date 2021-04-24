@@ -148,7 +148,7 @@ class EKF():
         self.mean[0:3] +=  L @ (y - _y)
         self.cov[0:3,0:3] = P
 
-    def get_estimated_state(self):
+    def get_estimated_state(self, quad_name):
         return self.mean
 
     def time_update_thread_run(self,time_update_rate,time_scaling):

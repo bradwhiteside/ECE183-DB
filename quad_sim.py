@@ -41,8 +41,7 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     quad = quadcopter.Quadcopter(QUADCOPTER)
     # gui_object = gui.GUI(quads=QUADCOPTER)
     est = estimator.EKF(quad.get_time, quad.get_position,quad.get_linear_rate, quad.get_linear_accelertaions, quad.get_IMU_accelertaions, quad.get_orientation, quad.get_Gyro, quad.get_state, quad.get_motor_speeds,quad.get_covariances, quad.get_GPS, params=CONTROLLER_PARAMETERS, quads=QUADCOPTER, quad_identifier='q1')
-    ctrl = controller.Controller_PID_Point2Point(quad.get_state, quad.get_time, quad.set_motor_speeds,
-                                                 params=CONTROLLER_PARAMETERS, quad_identifier='q1')
+    ctrl = controller.Controller_PID_Point2Point(quad.get_state, quad.get_time, quad.set_motor_speeds, est.get_estimated_state, params=CONTROLLER_PARAMETERS, quad_identifier='q1')
     # Start the threads
     quad.start_thread(dt=QUAD_DYNAMICS_UPDATE, time_scaling=TIME_SCALING)
     start_time = datetime.datetime.now()
@@ -61,7 +60,7 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
         while t < limit or True:
             t = (quad.get_time()-start_time).total_seconds()
             pos = np.array(quad.get_position('q1'))
-            est_pos = np.array(est.get_estimated_state()[0:3])
+            est_pos = np.array(est.get_estimated_state('q1')[0:3])
             dist = np.linalg.norm(est_pos - goal)
             error = pos - est_pos
 
@@ -89,8 +88,8 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     ax1.invert_yaxis()
     ax1.set_xticks(range(256)[::32])
     ax1.set_yticks(range(256)[::-32])
-    ax1.set_xlabel('x')
-    ax1.set_ylabel('y')
+    ax1.set_xlabel('x (m)')
+    ax1.set_ylabel('y (m)')
     img1 = pp.draw_path(map, GOALS, (255, 255, 0, 255))  # yellow
     ax1.imshow(img1, extent=[0, 256, 0, 256])
     plt.savefig("outputs/" + map.split('/')[2] + "_computed_path.jpg")
