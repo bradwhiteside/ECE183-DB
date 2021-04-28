@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Constants
-TIME_SCALING = 1.0  # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
+TIME_SCALING = 1.0 # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
 QUAD_DYNAMICS_UPDATE = 0.002  # seconds
 CONTROLLER_DYNAMICS_UPDATE = 0.005  # seconds
 ESTIMATION_TIME_UPDATE = 0.005
@@ -47,18 +47,31 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     start_time = datetime.datetime.now()
     ctrl.start_thread(update_rate=CONTROLLER_DYNAMICS_UPDATE, time_scaling=TIME_SCALING)
     est.start_thread(time_update_rate=ESTIMATION_TIME_UPDATE, observation_update_rate = ESTIMATION_OBSERVATION_UPDATE ,time_scaling=TIME_SCALING)
+    
     # Update the GUI while switching between destination poitions
     output_file_name = "outputs/" + map.split('/')[2] + "_path_data.csv"
     output_file = open(output_file_name, 'w', buffering=65536)
-    path_taken = []
-    estimated_path = []
+    path_taken = np.empty((0, 3), float)
+    estimated_path = np.empty((0, 3), float)
     path_error = np.empty((0, 3), float)
-    t = 0
-    limit = 5
+   
+    time_limit = 50
+    dist = 100
+    tolorance = 2 #Norm2
+
     for goal in GOALS:
+        print(goal)
         ctrl.update_target(goal)
-        while t < limit or True:
-            t = (quad.get_time()-start_time).total_seconds()
+        goal_start_time = datetime.datetime.now()
+        dt = 0
+        est_pos = np.array(est.get_estimated_state('q1')[0:3])
+        dist = np.linalg.norm(est_pos - goal)
+        while dt < time_limit and dist > tolorance:#or True:
+        
+            # print("dist",dist)
+            t = (quad.get_time() - start_time).total_seconds()
+            # print(t)
+            dt = (datetime.datetime.now()-goal_start_time).total_seconds()
             pos = np.array(quad.get_position('q1'))
             est_pos = np.array(est.get_estimated_state('q1')[0:3])
             dist = np.linalg.norm(est_pos - goal)
@@ -68,8 +81,10 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
             # gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
             # gui_object.update()
 
-            path_taken.append(pos)
-            estimated_path.append(est_pos)
+            # path_taken.append(pos)
+            # estimated_path.append(est_pos)
+            path_taken = np.append(path_taken, np.array([pos]), axis=0)
+            estimated_path = np.append(estimated_path, np.array([est_pos]), axis=0)
             path_error = np.append(path_error, np.array([error]), axis=0)
 
             output_str = '{:.3f}'.format(t)
@@ -79,11 +94,16 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
             output_file.write(output_str)
             # print("Time: {}\tGoal is {}\tCur pos is {}\tEst pos is {}\t Dist = {}".format(t, goal, pos, est_pos, dist))
 
-            if dist < 2:
-                break
+            # if dist < 2:
+            #     break
 
         output_file.flush()
 
+    quad.stop_thread()
+    ctrl.stop_thread()
+    est.stop_thread()
+
+    #Plot the path
     fig1, ax1 = plt.subplots(figsize=(8, 8))
     ax1.invert_yaxis()
     ax1.set_xticks(range(256)[::32])
@@ -96,25 +116,72 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     img2 = pp.draw_path(img1, estimated_path, (255, 0, 255, 255))  # pink
     ax1.imshow(img2, extent=[0, 256, 0, 256])
     plt.savefig("outputs/" + map.split('/')[2] + "_path_taken.jpg")
-
+    
+    #Error plot
     fig2, axs2 = plt.subplots(3, 1, figsize=(12, 8))
-    fig2.suptitle('Errors in state estimation')
+    fig2.suptitle('State Estimation - True State')
     time = np.linspace(0, t, len(path_error))
     axs2[0].plot(time, path_error[:, 0])
     axs2[0].title.set_text("X error")
+    axs2[0].set_xlabel("t (s)")
+    axs2[0].set_ylabel("x (m)")
     axs2[1].plot(time, path_error[:, 1])
     axs2[1].title.set_text("Y error")
+    axs2[1].set_xlabel("t (s)")
+    axs2[1].set_ylabel("y (m)")
     axs2[2].plot(time, path_error[:, 2])
     axs2[2].title.set_text("Z error")
+    axs2[2].set_xlabel("t (s)")
+    axs2[2].set_ylabel("z (m)")
     plt.subplots_adjust(hspace=0.4, bottom=0.07, left=0.095, right=0.95)
     plt.savefig("outputs/" + map.split('/')[2] + "_error.jpg")
-
     plt.show()
 
+    #Estimation plots
+    fig3, axs3 = plt.subplots(3, 1, figsize=(12, 8))
+    fig3.suptitle('Absolute XYZ State Estimations')
+    time = np.linspace(0, t, len(estimated_path))
+    axs3[0].plot(time, estimated_path[:, 0])
+    axs3[0].title.set_text("X")
+    axs3[0].set_xlabel("t (s)")
+    axs3[0].set_ylabel("x (m)")
+    axs3[1].plot(time, estimated_path[:, 1])
+    axs3[1].title.set_text("Y")
+    axs3[1].set_xlabel("t (s)")
+    axs3[1].set_ylabel("y (m)")
+    axs3[2].plot(time, estimated_path[:, 2])
+    axs3[2].title.set_text("Z")
+    axs3[2].set_xlabel("t (s)")
+    axs3[2].set_ylabel("z (m)")
+    plt.subplots_adjust(hspace=0.4, bottom=0.07, left=0.095, right=0.95)
+    plt.savefig("outputs/" + map.split('/')[2] + "_est.jpg")
+    plt.show()
+
+
+    #True Trajectory Plots
+    fig4, axs4 = plt.subplots(3, 1, figsize=(12, 8))
+    fig4.suptitle('Absolute XYZ True States')
+    time = np.linspace(0, t, len(path_taken))
+    axs4[0].plot(time, path_taken[:, 0])
+    axs4[0].title.set_text("X")
+    axs4[0].set_xlabel("t (s)")
+    axs4[0].set_ylabel("x (m)")
+    axs4[1].plot(time, path_taken[:, 1])
+    axs4[1].title.set_text("Y")
+    axs4[1].set_xlabel("t (s)")
+    axs4[1].set_ylabel("y (m)")
+    axs4[2].plot(time, path_taken[:, 2])
+    axs4[2].title.set_text("Z")
+    axs4[2].set_xlabel("t (s)")
+    axs4[2].set_ylabel("z (m)")
+    plt.subplots_adjust(hspace=0.4, bottom=0.07, left=0.095, right=0.95)
+    plt.savefig("outputs/" + map.split('/')[2] + "_true.jpg")
+    plt.show()
+
+
+
     output_file.close()
-    quad.stop_thread()
-    ctrl.stop_thread()
-    est.stop_thread()
+    
 
 
 def Multi_Point2Point():
