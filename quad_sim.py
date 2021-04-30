@@ -54,6 +54,8 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     path_taken = np.empty((0, 3), float)
     estimated_path = np.empty((0, 3), float)
     path_error = np.empty((0, 3), float)
+    true_orientations = np.empty((0, 3), float) #Roll, pith, yaw
+    true_angular_rates = np.empty((0, 3), float) #Roll, pith, yaw rates
    
     time_limit = 50
     dist = 100
@@ -72,26 +74,31 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
             t = (quad.get_time() - start_time).total_seconds()
             # print(t)
             dt = (datetime.datetime.now()-goal_start_time).total_seconds()
+            
             pos = np.array(quad.get_position('q1'))
+            true_orientation = np.array(quad.get_orientation('q1'))
+            true_angular_rate = np.array(quad.get_angular_rate('q1'))
             est_pos = np.array(est.get_estimated_state('q1')[0:3])
             dist = np.linalg.norm(est_pos - goal)
             error = pos - est_pos
-
-            # gui_object.quads['q1']['position'] = pos
-            # gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
-            # gui_object.update()
 
             # path_taken.append(pos)
             # estimated_path.append(est_pos)
             path_taken = np.append(path_taken, np.array([pos]), axis=0)
             estimated_path = np.append(estimated_path, np.array([est_pos]), axis=0)
             path_error = np.append(path_error, np.array([error]), axis=0)
+            true_orientations = np.append(true_orientations, np.array([true_orientation]), axis=0)
+            true_angular_rates = np.append(true_angular_rates, np.array([true_angular_rate]), axis=0)
 
             output_str = '{:.3f}'.format(t)
             for e in est_pos: output_str += ' {:.3f}'.format(e)
             for e in error: output_str += ' {:.3f}'.format(e)
             output_str += '\n'
             output_file.write(output_str)
+
+            # gui_object.quads['q1']['position'] = pos
+            # gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
+            # gui_object.update()
             # print("Time: {}\tGoal is {}\tCur pos is {}\tEst pos is {}\t Dist = {}".format(t, goal, pos, est_pos, dist))
 
             # if dist < 2:
@@ -153,6 +160,7 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     axs3[2].title.set_text("Z")
     axs3[2].set_xlabel("t (s)")
     axs3[2].set_ylabel("z (m)")
+    axs3[2].set_ylim([0, 4])
     plt.subplots_adjust(hspace=0.4, bottom=0.07, left=0.095, right=0.95)
     plt.savefig("outputs/" + map.split('/')[2] + "_est.jpg")
     plt.show()
@@ -174,11 +182,52 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     axs4[2].title.set_text("Z")
     axs4[2].set_xlabel("t (s)")
     axs4[2].set_ylabel("z (m)")
+    axs4[2].set_ylim([0, 4])
     plt.subplots_adjust(hspace=0.4, bottom=0.07, left=0.095, right=0.95)
     plt.savefig("outputs/" + map.split('/')[2] + "_true.jpg")
     plt.show()
 
+    #True Angular Rate Plots
+    fig5, axs5 = plt.subplots(3, 1, figsize=(12, 8))
+    fig5.suptitle('True Roll, Pitch, Yaw Rates')
+    time = np.linspace(0, t, len(true_angular_rates))
+    axs5[0].plot(time, true_angular_rates[:, 0])
+    axs5[0].title.set_text("theta_dot")
+    axs5[0].set_xlabel("t (s)")
+    axs5[0].set_ylabel("roll_rate (rad/s)")
+    axs5[1].plot(time, true_angular_rates[:, 1])
+    axs5[1].title.set_text("phi_dot")
+    axs5[1].set_xlabel("t (s)")
+    axs5[1].set_ylabel("pitch_rate (rad/s)")
+    axs5[2].plot(time, true_angular_rates[:, 2])
+    axs5[2].title.set_text("gamma_dot")
+    axs5[2].set_xlabel("t (s)")
+    axs5[2].set_ylabel("yaw_rate(rad/s)")
+    # axs5[2].set_ylim([0, 4])
+    plt.subplots_adjust(hspace=0.4, bottom=0.07, left=0.095, right=0.95)
+    plt.savefig("outputs/" + map.split('/')[2] + "_true_angular_rates.jpg")
+    plt.show()
 
+    #True Angular Rate Plots
+    fig6, axs6 = plt.subplots(3, 1, figsize=(12, 8))
+    fig6.suptitle('True Roll, Pitch, Yaw States')
+    time = np.linspace(0, t, len(true_orientations))
+    axs6[0].plot(time, true_orientations[:, 0])
+    axs6[0].title.set_text("Roll Angle")
+    axs6[0].set_xlabel("t (s)")
+    axs6[0].set_ylabel("roll (rad)")
+    axs6[1].plot(time, true_orientations[:, 1])
+    axs6[1].title.set_text("Pitch Angle")
+    axs6[1].set_xlabel("t (s)")
+    axs6[1].set_ylabel("pitch (rad)")
+    axs6[2].plot(time, true_orientations[:, 2])
+    axs6[2].title.set_text("Yaw Angle")
+    axs6[2].set_xlabel("t (s)")
+    axs6[2].set_ylabel("yaw(rad)")
+    # axs5[2].set_ylim([0, 4])
+    plt.subplots_adjust(hspace=0.4, bottom=0.07, left=0.095, right=0.95)
+    plt.savefig("outputs/" + map.split('/')[2] + "_true_orientations.jpg")
+    plt.show()
 
     output_file.close()
     

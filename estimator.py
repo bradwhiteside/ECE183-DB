@@ -23,12 +23,12 @@ class EKF():
         self.quad = quads[quad_identifier]
         self.weight = quads[quad_identifier]['weight']
         self.g = 9.81
-        self.b = 0.0245
+        # self.b = 0.0245
 
         #Estimate varibles
         self.mean = np.zeros(12)
         self.cov = np.eye(12,12) * 0.1
-        self.Q , self.R = get_covariances(self.quad_id) #3*3 for now
+        self.Q, self.R = get_covariances(self.quad_id) #3*3 for now
   
 
 
@@ -101,6 +101,8 @@ class EKF():
         # self.mean[6:9] = self.get_orientations(self.quad_id)
         # R_inv = self.rotation_matrix_in_to_bd(self.mean[6:9])
         accel_mean = self.get_IMU_accelertaions(self.quad_id)
+        
+        #Complementary
         complementary_angles = self.convert_accel_to_angle(accel_mean) * self.time_update_rate**2
         # # print("g_angle:", np.degrees(self.mean[6:9]))
         # # print("c_angle:", np.degrees(complementary_angles)) # - self.get_states(self.quad_id)[6:9])
@@ -113,7 +115,6 @@ class EKF():
         # R = self.rotation_matrix(self.mean[6:8])
         # linear_accelerations = R @ accel_mean 
         # self.mean[3:6] += linear_accelerations * self.time_update_rate 
-        
         self.mean[3:6] += self.get_linear_accelerations(self.quad_id) * self.time_update_rate 
         #assuming Time update is done with the same rat for all sensors 
         [x_dot, y_dot, z_dot] = self.mean[3:6]
@@ -125,8 +126,6 @@ class EKF():
         G = np.eye(3,3) * self.time_update_rate
         self.cov[0:3,0:3] = self.cov[0:3,0:3] + self.time_update_rate * (A @ self.cov[0:3,0:3] + self.cov[0:3,0:3] @ A.T + G @ self.Q @ G.T)
         # print(np.degrees(self.mean[6:9] - self.get_states(self.quad_id)[6:9]))
-        
-        
         
     def observation_update(self):
         #  c = np.eye(3)
