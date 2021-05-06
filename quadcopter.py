@@ -39,6 +39,8 @@ class Quadcopter():
             self.quads[key]['m2'] = Propeller(self.quads[key]['prop_size'][0],self.quads[key]['prop_size'][1])
             self.quads[key]['m3'] = Propeller(self.quads[key]['prop_size'][0],self.quads[key]['prop_size'][1])
             self.quads[key]['m4'] = Propeller(self.quads[key]['prop_size'][0],self.quads[key]['prop_size'][1])
+            self.quads[key]['m5'] = Propeller(self.quads[key]['prop_size'][0],self.quads[key]['prop_size'][1])
+            self.quads[key]['m6'] = Propeller(self.quads[key]['prop_size'][0],self.quads[key]['prop_size'][1])
             self.linear_accelerations = [0,0,self.g]
             
             #Accel
@@ -108,7 +110,7 @@ class Quadcopter():
         state_dot[1] = self.quads[key]['state'][4]
         state_dot[2] = self.quads[key]['state'][5]
         # The acceleration
-        x_dotdot = np.array([0,0,-1*self.g]) + np.dot(self.rotation_matrix(self.quads[key]['state'][6:9]), np.array([0,0,(self.quads[key]['m1'].thrust + self.quads[key]['m2'].thrust + self.quads[key]['m3'].thrust + self.quads[key]['m4'].thrust)]))/self.quads[key]['weight']
+        x_dotdot = np.array([0,0,-1*self.g]) + np.dot(self.rotation_matrix(self.quads[key]['state'][6:9]), np.array([0,0,(self.quads[key]['m1'].thrust + self.quads[key]['m2'].thrust + self.quads[key]['m3'].thrust + self.quads[key]['m4'].thrust + self.quads[key]['m5'].thrust + self.quads[key]['m6'].thrust)]))/self.quads[key]['weight']
         state_dot[3] = x_dotdot[0]
         state_dot[4] = x_dotdot[1]
         state_dot[5] = x_dotdot[2]
@@ -120,7 +122,9 @@ class Quadcopter():
         state_dot[8] = self.quads[key]['state'][11]
         # The angular accelerations
         omega = self.quads[key]['state'][9:12]
-        tau = np.array([self.quads[key]['L']*(self.quads[key]['m1'].thrust-self.quads[key]['m3'].thrust), self.quads[key]['L']*(self.quads[key]['m2'].thrust-self.quads[key]['m4'].thrust), self.b*(self.quads[key]['m1'].thrust-self.quads[key]['m2'].thrust+self.quads[key]['m3'].thrust-self.quads[key]['m4'].thrust)])
+        tau = np.array([self.quads[key]['L']*(-self.quads[key]['m2'].thrust+self.quads[key]['m5'].thrust+0.5*(-self.quads[key]['m1'].thrust-self.quads[key]['m3'].thrust+self.quads[key]['m4'].thrust+self.quads[key]['m6'].thrust)),
+                        self.quads[key]['L']*(np.sqrt(3)/2)*(-self.quads[key]['m1'].thrust+self.quads[key]['m3'].thrust+self.quads[key]['m4'].thrust-self.quads[key]['m6'].thrust),
+                        self.b*(-self.quads[key]['m1'].thrust+self.quads[key]['m2'].thrust-self.quads[key]['m3'].thrust+self.quads[key]['m4'].thrust-self.quads[key]['m5'].thrust+self.quads[key]['m6'].thrust)])
         omega_dot = np.dot(self.quads[key]['invI'], (tau - np.cross(omega, np.dot(self.quads[key]['I'],omega))))
         state_dot[9] = omega_dot[0]
         state_dot[10] = omega_dot[1]
@@ -139,13 +143,17 @@ class Quadcopter():
         self.quads[quad_name]['m2'].set_speed(speeds[1])
         self.quads[quad_name]['m3'].set_speed(speeds[2])
         self.quads[quad_name]['m4'].set_speed(speeds[3])
-
+        self.quads[quad_name]['m5'].set_speed(speeds[4])
+        self.quads[quad_name]['m6'].set_speed(speeds[5])
+        
     def get_motor_speeds(self, quad_name):
         m1 = self.quads[quad_name]['m1'].speed
         m2 = self.quads[quad_name]['m2'].speed
-        m3 = self.quads[quad_name]['m2'].speed
-        m4 = self.quads[quad_name]['m2'].speed
-        M = [m1,m2,m3,m4]
+        m3 = self.quads[quad_name]['m3'].speed
+        m4 = self.quads[quad_name]['m4'].speed
+        m3 = self.quads[quad_name]['m5'].speed
+        m4 = self.quads[quad_name]['m6'].speed
+        M = [m1,m2,m3,m4,m5,m6]
         return M
 
 
