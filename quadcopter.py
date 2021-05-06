@@ -50,11 +50,13 @@ class Quadcopter():
             self.gyro_x_std = 3e-4
             self.gyro_y_std = 3e-4
             self.gyro_z_std = 3e-4
+            self.zero_tol = 0 #5 degrees only for roll and pitch for now
 
             #GPS
             self.gps_x_std = 0.83
             self.gps_y_std = 0.83
             self.gps_z_std = 0.03
+        
 
            
             M = np.diag([self.accl_x_std, self.accl_x_std,self.accl_x_std]) **2
@@ -84,17 +86,18 @@ class Quadcopter():
         return R
 
     def rotation_matrix_in_to_bd(self,angles):
-        ct = math.cos(angles[0])
-        cp = math.cos(angles[1])
-        cs = math.cos(angles[2])
-        st = math.sin(angles[0])
-        sp = math.sin(angles[1])
-        ss = math.sin(angles[2])
-        R = np.array([[cp*cs-ct*sp*ss, -cs*sp-cp*ct*ss, st*ss], 
-                      [ct*cs*sp+cp*ss,  cp*ct*cs-sp*ss, -cs*st],
-                      [sp*st,           cp*st,          ct    ]])
+        # ct = math.cos(angles[0])
+        # cp = math.cos(angles[1])
+        # cs = math.cos(angles[2])
+        # st = math.sin(angles[0])
+        # sp = math.sin(angles[1])
+        # ss = math.sin(angles[2])
+        # R = np.array([[cp*cs-ct*sp*ss, -cs*sp-cp*ct*ss, st*ss], 
+        #               [ct*cs*sp+cp*ss,  cp*ct*cs-sp*ss, -cs*st],
+        #               [sp*st,           cp*st,          ct    ]])
+        R = np.linalg.inv(self.rotation_matrix(angles))
         return R
-    
+
     def wrap_angle(self,val):
         return( ( val + np.pi) % (2 * np.pi ) - np.pi )
 
@@ -152,7 +155,8 @@ class Quadcopter():
     
     def get_Gyro(self,quad_name):
         angular_rate_std = [self.gyro_x_std, self.gyro_y_std, self.gyro_z_std]
-        return np.random.normal(self.quads[quad_name]['state'][9:12], angular_rate_std)
+        bias = [self.zero_tol,self.zero_tol,0] 
+        return np.random.normal(self.quads[quad_name]['state'][9:12] + bias, angular_rate_std)
 
     def get_position(self,quad_name):
         return self.quads[quad_name]['state'][0:3]
@@ -166,8 +170,14 @@ class Quadcopter():
         return np.random.normal(self.linear_accelerations, accel_std)
 
     def get_IMU_accelertaions(self, quad_name):
+        print("IMU_accel")
         R_inv = self.rotation_matrix_in_to_bd(self.quads[quad_name]['state'][6:9])
-        return R_inv @ self.linear_accelerations
+        IMU_accel = R_inv @ self.linear_accelerations
+        accel_std = [self.accl_x_std, self.accl_y_std, self.accl_z_std]
+        return np.random.normal(IMU_accel, accel_std)
+        
+
+         
 
 
 
