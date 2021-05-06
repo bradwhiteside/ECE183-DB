@@ -21,13 +21,14 @@ class Propeller():
         if self.thrust_unit == 'Kg':
             self.thrust = self.thrust*0.101972
 
+
 class Quadcopter():
     # State space representation: [x y z x_dot y_dot z_dot theta phi gamma theta_dot phi_dot gamma_dot]
     # From Quadcopter Dynamics, Simulation, and Control by Andrew Gibiansky
-    def __init__(self,quads,gravity=9.81,b=0.0245):
+    def __init__(self,quads,gravity=9.81, d=0.0245):
         self.quads = quads
         self.g = gravity
-        self.b = b
+        self.d = d #drag factor
         self.thread_object = None
         self.ode =  scipy.integrate.ode(self.state_dot).set_integrator('vode',nsteps=500,method='bdf')
         self.time = datetime.datetime.now()
@@ -45,11 +46,13 @@ class Quadcopter():
             # ixx=((2*self.quads[key]['weight']*self.quads[key]['r']**2)/5)+(2*self.quads[key]['weight']*self.quads[key]['L']**2)
             # iyy=ixx
             # izz=((2*self.quads[key]['weight']*self.quads[key]['r']**2)/5)+(4*self.quads[key]['weight']*self.quads[key]['L']**2)
-            ixx = 723294.019
-            iyy = 735315.656
-            izz = 644307.650
+            ixx =100#((2*self.quads[key]['weight']*self.quads[key]['r']**2)/5)+(2*self.quads[key]['weight']*self.quads[key]['L']**2)#0.72#0.2208
+            iyy = ixx# 0.74#0.2208
+            izz = 250#((2*self.quads[key]['weight']*self.quads[key]['r']**2)/5)+(4*self.quads[key]['weight']*self.quads[key]['L']**2)#0.64#0.4386
+            print(ixx, iyy, izz)
             self.quads[key]['I'] = np.array([[ixx,0,0],[0,iyy,0],[0,0,izz]])
             self.quads[key]['invI'] = np.linalg.inv(self.quads[key]['I'])
+
         self.run = True
 
     def rotation_matrix(self,angles):
@@ -69,6 +72,14 @@ class Quadcopter():
         return( ( val + np.pi) % (2 * np.pi ) - np.pi )
 
     def state_dot(self, time, state, key):
+        L = self.quads[key]['L']
+        M1 = self.quads[key]['m1'].thrust
+        M2 = self.quads[key]['m2'].thrust
+        M3 = self.quads[key]['m3'].thrust
+        M4 = self.quads[key]['m4'].thrust
+        M5 = self.quads[key]['m5'].thrust
+        M6 = self.quads[key]['m6'].thrust
+
         state_dot = np.zeros(12)
         # The linear velocities(t+1 x_dots equal the t x_dots)   #x_1_dot
         state_dot[0] = self.quads[key]['state'][3]
@@ -76,12 +87,7 @@ class Quadcopter():
         state_dot[2] = self.quads[key]['state'][5]
         
         # The acceleration
-        x_dotdot = np.array([0,0,-self.quads[key]['weight']*self.g]) + np.dot(self.rotation_matrix(self.quads[key]['state'][6:9]), np.array([0,0,(self.quads[key]['m1'].thrust +
-                                                                                                                                                  self.quads[key]['m2'].thrust + 
-                                                                                                                                                  self.quads[key]['m3'].thrust + 
-                                                                                                                                                  self.quads[key]['m4'].thrust + 
-                                                                                                                                                  self.quads[key]['m5'].thrust + 
-                                                                                                                                                  self.quads[key]['m6'].thrust)]))/self.quads[key]['weight']  #x_2_dot
+        x_dotdot = np.array([0,0,-1*self.g]) + np.dot(self.rotation_matrix( self.quads[key]['state'][6:9]), np.array([0,0,(M1 + M2 + M3 + M4 + M5 + M6)]))/self.quads[key]['weight']  #x_2_dot
         
         state_dot[3] = x_dotdot[0]
         state_dot[4] = x_dotdot[1]
@@ -96,11 +102,26 @@ class Quadcopter():
 
         # tau = np.array([self.quads[key]['L']*(self.quads[key]['m1'].thrust-self.quads[key]['m3'].thrust), 
         #                 self.quads[key]['L']*(self.quads[key]['m2'].thrust-self.quads[key]['m4'].thrust), 
-        #                 self.b*(self.quads[key]['m1'].thrust-self.quads[key]['m2'].thrust+self.quads[key]['m3'].thrust-self.quads[key]['m4'].thrust)])
+        #                 self.d*(self.quads[key]['m1'].thrust-self.quads[key]['m2'].thrust+self.quads[key]['m3'].thrust-self.quads[key]['m4'].thrust)])
         #Torques
-        tau = np.array([self.quads[key]['L']*(-self.quads[key]['m2'].thrust+self.quads[key]['m5'].thrust+0.5*(-self.quads[key]['m1'].thrust-self.quads[key]['m3'].thrust+self.quads[key]['m4'].thrust+self.quads[key]['m6'].thrust)),
-                        self.quads[key]['L']*(np.sqrt(3)/2)*(-self.quads[key]['m1'].thrust+self.quads[key]['m3'].thrust+self.quads[key]['m4'].thrust-self.quads[key]['m6'].thrust),
-                        self.b*(-self.quads[key]['m1'].thrust+self.quads[key]['m2'].thrust-self.quads[key]['m3'].thrust+self.quads[key]['m4'].thrust-self.quads[key]['m5'].thrust+self.quads[key]['m6'].thrust)])
+        tau = np.array([L*(-M2+M5+0.5*(-M1-M3+M4+M6)), 
+                        L*(np.sqrt(3)/2)*(-M1+M3+M4-M6), 
+                        self.d*(-(self.quads[key]['m1'].speed)**2+(self.quads[key]['m2'].speed)**2-(self.quads[key]['m3'].speed)**2+(self.quads[key]['m4'].speed)**2-(self.quads[key]['m5'].speed)**2+(self.quads[key]['m6'].speed)**2)])
+
+
+
+        x_val = tau[0]
+        y_val = tau[1]
+        z_val = tau[2]
+        throttle = x_dotdot[2]
+
+        m1 = 1/(6*L) * (L * throttle + 2 * x_val - L/self.d *z_val)
+        m2 = 1/(6*L) * (L * throttle + x_val - np.sqrt(3) * y_val + L/self.d *z_val)
+        m3 = 1/(6*L) * (L * throttle - x_val - np.sqrt(3) * y_val - L/self.d *z_val)
+        m4 = 1/(6*L) * (L * throttle - 2 * x_val + L/self.d *z_val)
+        m5 = 1/(6*L) * (L * throttle - x_val + np.sqrt(3) * y_val - L/self.d *z_val)
+        m6 = 1/(6*L) * (L * throttle + x_val + np.sqrt(3) * y_val + L/self.d *z_val)
+        # print("%.2f, %.2f, %.2f, %.2f, %.2f, %.2f" % (M1-m1, M2-m2, M3-m3, M4-m4, M5-m5, M6-m6))
 
 
 
@@ -114,6 +135,7 @@ class Quadcopter():
         for key in self.quads:
             self.ode.set_initial_value(self.quads[key]['state'],0).set_f_params(key)
             self.quads[key]['state'] = self.ode.integrate(self.ode.t + dt)
+            # self.quads[key]['state'] += self.state_dot(1, 1, 'q1') * dt
             self.quads[key]['state'][6:9] = self.wrap_angle(self.quads[key]['state'][6:9])
             self.quads[key]['state'][2] = max(0,self.quads[key]['state'][2])
 
@@ -124,6 +146,9 @@ class Quadcopter():
         self.quads[quad_name]['m4'].set_speed(speeds[3])
         self.quads[quad_name]['m5'].set_speed(speeds[4])
         self.quads[quad_name]['m6'].set_speed(speeds[5])
+
+    def get_L(self):
+        return self.quads['q1']['L']
 
     def get_position(self,quad_name):
         return self.quads[quad_name]['state'][0:3]

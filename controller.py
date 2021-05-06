@@ -4,11 +4,12 @@ import time
 import threading
 
 class Controller_PID_Point2Point():
-    def __init__(self, get_state, get_time, actuate_motors, params, quad_identifier):
+    def __init__(self, get_state, get_time, actuate_motors, get_L, params,  quad_identifier):
         self.quad_identifier = quad_identifier
         self.actuate_motors = actuate_motors
         self.get_state = get_state
         self.get_time = get_time
+        self.get_L  = get_L
         self.MOTOR_LIMITS = params['Motor_limits']
         self.TILT_LIMITS = [(params['Tilt_limits'][0]/180.0)*3.14,(params['Tilt_limits'][1]/180.0)*3.14]
         self.YAW_CONTROL_LIMITS = params['Yaw_Control_Limits']
@@ -30,6 +31,12 @@ class Controller_PID_Point2Point():
         self.thread_object = None
         self.target = [0,0,0]
         self.yaw_target = 0.0
+
+      
+
+        self.L = self.get_L()
+        self.d = 0.0245
+
         self.run = True
 
     def wrap_angle(self,val):
@@ -78,6 +85,7 @@ class Controller_PID_Point2Point():
         z_val = self.ANGULAR_P[2]*(gamma_dot_error) + self.gammai_term                               #yaw
         z_val = np.clip(z_val,self.YAW_CONTROL_LIMITS[0],self.YAW_CONTROL_LIMITS[1])
         
+        
         #Motor input values
         # m1 = throttle + x_val + z_val
         # m2 = throttle + y_val - z_val
@@ -85,6 +93,37 @@ class Controller_PID_Point2Point():
         # m4 = throttle - y_val - z_val
 
         #x_roll, y_pitch, z_yaw
+        # temp1 = x_val
+        # temp2 = y_val
+        # y_val = temp1
+        # x_val = temp2
+
+        print("pitch torque is: %.2f , pitch error is %.2f" % (y_val, phi_error))
+
+        L = self.L
+        # m1 = 1/(6*L) * (L * throttle + 2 * x_val                  - L/self.d *z_val)
+        # m2 = 1/(6*L) * (L * throttle + x_val - np.sqrt(3) * y_val + L/self.d *z_val)
+        # m3 = 1/(6*L) * (L * throttle - x_val - np.sqrt(3) * y_val - L/self.d *z_val)
+        # m4 = 1/(6*L) * (L * throttle - 2 * x_val                  + L/self.d *z_val)
+        # m5 = 1/(6*L) * (L * throttle - x_val + np.sqrt(3) * y_val - L/self.d *z_val)
+        # m6 = 1/(6*L) * (L * throttle + x_val + np.sqrt(3) * y_val + L/self.d *z_val)
+
+        m1 = 1/(6*L) * (L * throttle - 2 * x_val - np.sqrt(3) * y_val - L/self.d *z_val)
+        m2 = 1/(6*L) * (L * throttle -     x_val                      + L/self.d *z_val)
+        m3 = 1/(6*L) * (L * throttle - 2 * x_val + np.sqrt(3) * y_val - L/self.d *z_val)
+        m4 = 1/(6*L) * (L * throttle + 2 * x_val + np.sqrt(3) * y_val + L/self.d *z_val)
+        m5 = 1/(6*L) * (L * throttle +     x_val                      - L/self.d *z_val)
+        m6 = 1/(6*L) * (L * throttle + 2 * x_val - np.sqrt(3) * y_val + L/self.d *z_val)
+
+
+        # m1 = (throttle + 2 * x_val - L/self.d *z_val)
+        # m2 = (throttle + x_val - np.sqrt(3) * y_val + L/self.d *z_val)
+        # m3 = (throttle - x_val - np.sqrt(3) * y_val - L/self.d *z_val)
+        # m4 = (throttle - 2 * x_val + L/self.d *z_val)
+        # m5 = (throttle - x_val + np.sqrt(3) * y_val - L/self.d *z_val)
+        # m6 = (throttle + x_val + np.sqrt(3) * y_val + L/self.d *z_val)
+
+
         # m1 = throttle + 2 * x_val - z_val
         # m2 = throttle + x_val - np.sqrt(3) * y_val + z_val
         # m3 = throttle - x_val - np.sqrt(3) * y_val - z_val
@@ -92,12 +131,12 @@ class Controller_PID_Point2Point():
         # m5 = throttle - x_val + np.sqrt(3) * y_val - z_val
         # m6 = throttle + x_val + np.sqrt(3) * y_val + z_val
 
-        m1 = throttle + x_val + y_val - z_val
-        m2 = throttle + x_val + z_val
-        m3 = throttle + x_val - y_val - z_val
-        m4 = throttle - x_val - y_val + z_val
-        m5 = throttle - x_val - z_val
-        m6 = throttle - x_val + y_val + z_val
+        # m1 = throttle + x_val + y_val - z_val
+        # m2 = throttle + x_val + z_val
+        # m3 = throttle + x_val - y_val - z_val
+        # m4 = throttle - x_val - y_val + z_val
+        # m5 = throttle - x_val - z_val
+        # m6 = throttle - x_val + y_val + z_val
         
         
        

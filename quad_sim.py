@@ -13,20 +13,19 @@ run = True
 def Single_Point2Point():
     # Set goals to go to
     # GOALS = [(1,1,2),(1,-1,4),(-1,-1,2),(-1,1,4)]
-    GOALS = [(1,0,4)]
-    # YAWS = [0,3.14,-1.54,1.54]
-    YAWS = [np.pi/2, np.pi/2, np.pi]
+    GOALS = [(1,0,4),(1,0,4),(1,0,4), (1,0,4)]
+    YAWS = [0, 0, 0, 0]
     # Define the quadcopters
-    QUADCOPTER={'q1':{'position':[1,0,4],'orientation':[0,0,0],'L':0.567,'r':0.2,'prop_size':[21,9.5],'weight':10}} #w in kg, L and r in mm, prop_size in in
+    QUADCOPTER={'q1':{'position':[0,0,4],'orientation':[0,0,0],'L':0.5,'r':0.2,'prop_size':[21,9.5],'weight':15}} #w in kg, L and r in mm, prop_size in in
     # Controller parameters
-    CONTROLLER_PARAMETERS = {'Motor_limits':[4000,11000],
-                        'Tilt_limits':[-10,10],
+    CONTROLLER_PARAMETERS = {'Motor_limits':[1000,42500],
+                        'Tilt_limits':[-5,5],
                         'Yaw_Control_Limits':[-900,900],
                         'Z_XY_offset':500,
-                        'Linear_PID':{'P':[300,300,7000],'I':[0.04,0.04,4.5],'D':[450,450,5000]},
+                        'Linear_PID':{'P':[22000,1,10000],'I':[0,1000,15],'D':[0,10000,6000]},
                         'Linear_To_Angular_Scaler':[1,1,0],
                         'Yaw_Rate_Scaler':0.18,
-                        'Angular_PID':{'P':[22000,22000,1500],'I':[0,0,1.2],'D':[12000,12000,0]},
+                        'Angular_PID':{'P':[1,10,1],'I':[0,1,0],'D':[0,100,100]},
                         }
 
     # Catch Ctrl+C to stop threads
@@ -34,7 +33,7 @@ def Single_Point2Point():
     # Make objects for quadcopter, gui and controller
     quad = quadcopter.Quadcopter(QUADCOPTER)
     gui_object = gui.GUI(quads=QUADCOPTER)
-    ctrl = controller.Controller_PID_Point2Point(quad.get_state,quad.get_time,quad.set_motor_speeds,params=CONTROLLER_PARAMETERS,quad_identifier='q1')
+    ctrl = controller.Controller_PID_Point2Point(quad.get_state,quad.get_time,quad.set_motor_speeds, quad.get_L, params=CONTROLLER_PARAMETERS,quad_identifier='q1')
     # Start the threads
     quad.start_thread(dt=QUAD_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)
     ctrl.start_thread(update_rate=CONTROLLER_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)
@@ -43,12 +42,35 @@ def Single_Point2Point():
         for goal,y in zip(GOALS,YAWS):
             ctrl.update_target(goal)
             ctrl.update_yaw_target(y)
-            for i in range(300):
+            drone_pos = quad.get_position('q1')
+            error = np.linalg.norm(drone_pos-goal)
+            start_time = quad.get_time()
+            time_laps = 0
+            while error > 1.29 or time_laps < 3:
                 gui_object.quads['q1']['position'] = quad.get_position('q1')
                 gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
                 gui_object.update()
+                drone_pos = quad.get_position('q1')
+                error = np.linalg.norm(drone_pos-goal)
+                time_laps = (quad.get_time() - start_time).total_seconds()
+                # print("error:",error, "time passed", time_laps)
     quad.stop_thread()
     ctrl.stop_thread()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def Multi_Point2Point():
     # Set goals to go to
