@@ -32,7 +32,7 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
                              'Linear_PID': {'P': [800, 800, 7000], 'I': [0, 0, 4.5], 'D': [7000, 7000, 5000]},
                              'Linear_To_Angular_Scaler': [1, 1, 0],
                              'Yaw_Rate_Scaler': 0.18,
-                             'Angular_PID': {'P': [22000, 22000, 1500], 'I': [0, 0, 1.2], 'D': [12000, 12000, 0]},
+                             'Angular_PID': {'P': [22000, 22000, 1500], 'I': [0, 0, 1.2], 'D': [32000, 32000, 0]},
                              }
 
     # Catch Ctrl+C to stop threads
@@ -40,8 +40,11 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     # Make objects for quadcopter, gui and controller
     quad = quadcopter.Quadcopter(QUADCOPTER)
     # gui_object = gui.GUI(quads=QUADCOPTER)
+
+    #Initiate the Estimator and the Controller
     est = estimator.EKF(quad.get_time, quad.get_position,quad.get_linear_rate, quad.get_linear_accelertaions, quad.get_IMU_accelertaions, quad.get_orientation, quad.get_Gyro, quad.get_state, quad.get_motor_speeds,quad.get_covariances, quad.get_GPS, params=CONTROLLER_PARAMETERS, quads=QUADCOPTER, quad_identifier='q1')
     ctrl = controller.Controller_PID_Point2Point(quad.get_state, quad.get_time, quad.set_motor_speeds, est.get_estimated_state, params=CONTROLLER_PARAMETERS, quad_identifier='q1')
+    
     # Start the threads
     quad.start_thread(dt=QUAD_DYNAMICS_UPDATE, time_scaling=TIME_SCALING)
     start_time = datetime.datetime.now()
@@ -54,12 +57,13 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     path_taken = np.empty((0, 3), float)
     estimated_path = np.empty((0, 3), float)
     path_error = np.empty((0, 3), float)
+    orientation_errors = np.empty((0, 3), float)
     true_orientations = np.empty((0, 3), float) #Roll, pith, yaw
     true_angular_rates = np.empty((0, 3), float) #Roll, pith, yaw rates
-   
-    time_limit = 50
-    dist = 100
-    tolorance = 2 #Norm2
+
+    #Simulation
+    time_limit = 50  *  TIME_SCALING  #Amount of time limit to spend on a Goal            
+    tolorance = 2                     #Steady state error
 
     for goal in GOALS:
         print(goal)
@@ -68,31 +72,35 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
         dt = 0
         est_pos = np.array(est.get_estimated_state('q1')[0:3])
         dist = np.linalg.norm(est_pos - goal)
-        while dt < time_limit and dist > tolorance:#or True:
+        while dt < time_limit and dist > tolorance:
         
             # print("dist",dist)
             t = (quad.get_time() - start_time).total_seconds()
             # print(t)
             dt = (datetime.datetime.now()-goal_start_time).total_seconds()
             
-            pos = np.array(quad.get_position('q1'))
-            true_orientation = np.array(quad.get_orientation('q1'))
-            true_angular_rate = np.array(quad.get_angular_rate('q1'))
-            est_pos = np.array(est.get_estimated_state('q1')[0:3])
+            true_state = np.array(quad.get_state('q1'))
+            est_state =  np.array(est.get_estimated_state('q1'))
+            true_pos, true_velocity, true_orientation, true_angular_rate = true_state[0:3], true_state[3:6],true_state[6:9],true_state[9:12]
+            est_pos, est_velocity, est_orientation, est_angular_rate = est_state[0:3], est_state[3:6], est_state[6:9], est_state[9:12]  #np.array(est.get_estimated_state('q1')[0:3])
+            
+           
             dist = np.linalg.norm(est_pos - goal)
-            error = pos - est_pos
+            pos_error = true_pos - est_pos
+            orientation_error = true_orientation - est_orientation
 
-            # path_taken.append(pos)
-            # estimated_path.append(est_pos)
-            path_taken = np.append(path_taken, np.array([pos]), axis=0)
+            path_taken = np.append(path_taken, np.array([true_pos]), axis=0)
             estimated_path = np.append(estimated_path, np.array([est_pos]), axis=0)
-            path_error = np.append(path_error, np.array([error]), axis=0)
+            path_error = np.append(path_error, np.array([pos_error]), axis=0)
+            orientation_errors = np.append(orientation_errors, np.array([orientation_error]), axis=0)
+
+            
             true_orientations = np.append(true_orientations, np.array([true_orientation]), axis=0)
             true_angular_rates = np.append(true_angular_rates, np.array([true_angular_rate]), axis=0)
 
             output_str = '{:.3f}'.format(t)
             for e in est_pos: output_str += ' {:.3f}'.format(e)
-            for e in error: output_str += ' {:.3f}'.format(e)
+            for e in pos_error: output_str += ' {:.3f}'.format(e)
             output_str += '\n'
             output_file.write(output_str)
 
@@ -124,9 +132,9 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     ax1.imshow(img2, extent=[0, 256, 0, 256])
     plt.savefig("outputs/" + map.split('/')[2] + "_path_taken.jpg")
     
-    #Error plot
+    #Pos Error plot
     fig2, axs2 = plt.subplots(3, 1, figsize=(12, 8))
-    fig2.suptitle('State Estimation - True State')
+    fig2.suptitle('XYZ Estimation Errors')
     time = np.linspace(0, t, len(path_error))
     axs2[0].plot(time, path_error[:, 0])
     axs2[0].title.set_text("X error")
@@ -142,7 +150,7 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     axs2[2].set_ylabel("z (m)")
     plt.subplots_adjust(hspace=0.4, bottom=0.07, left=0.095, right=0.95)
     plt.savefig("outputs/" + map.split('/')[2] + "_error.jpg")
-    plt.show()
+    # plt.show()
 
     #Estimation plots
     fig3, axs3 = plt.subplots(3, 1, figsize=(12, 8))
@@ -163,7 +171,9 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     axs3[2].set_ylim([0, 4])
     plt.subplots_adjust(hspace=0.4, bottom=0.07, left=0.095, right=0.95)
     plt.savefig("outputs/" + map.split('/')[2] + "_est.jpg")
-    plt.show()
+    # plt.show()
+
+
 
 
     #True Trajectory Plots
@@ -185,7 +195,7 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     axs4[2].set_ylim([0, 4])
     plt.subplots_adjust(hspace=0.4, bottom=0.07, left=0.095, right=0.95)
     plt.savefig("outputs/" + map.split('/')[2] + "_true.jpg")
-    plt.show()
+    # plt.show()
 
     #True Angular Rate Plots
     fig5, axs5 = plt.subplots(3, 1, figsize=(12, 8))
@@ -206,7 +216,7 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     # axs5[2].set_ylim([0, 4])
     plt.subplots_adjust(hspace=0.4, bottom=0.07, left=0.095, right=0.95)
     plt.savefig("outputs/" + map.split('/')[2] + "_true_angular_rates.jpg")
-    plt.show()
+    # plt.show()
 
     #True Angular Rate Plots
     fig6, axs6 = plt.subplots(3, 1, figsize=(12, 8))
@@ -227,7 +237,28 @@ def Single_Point2Point(start, target, alt, map, DEBUG):
     # axs5[2].set_ylim([0, 4])
     plt.subplots_adjust(hspace=0.4, bottom=0.07, left=0.095, right=0.95)
     plt.savefig("outputs/" + map.split('/')[2] + "_true_orientations.jpg")
-    plt.show()
+    # plt.show()
+
+
+    #Orientation Error plot
+    fig7, axs7 = plt.subplots(3, 1, figsize=(12, 8))
+    fig7.suptitle('Orientation Errors')
+    time = np.linspace(0, t, len(path_error))
+    axs7[0].plot(time, np.degrees(orientation_errors[:, 0]))
+    axs7[0].title.set_text("Roll Error")
+    axs7[0].set_xlabel("t (s)")
+    axs7[0].set_ylabel("Roll (rad)")
+    axs7[1].plot(time, np.degrees(orientation_errors[:, 1]))
+    axs7[1].title.set_text("Pitch Error")
+    axs7[1].set_xlabel("t (s)")
+    axs7[1].set_ylabel("Pitch (rad)")
+    axs7[2].plot(time, np.degrees(orientation_errors[:, 2]))
+    axs7[2].title.set_text("Yaw Error")
+    axs7[2].set_xlabel("t (s)")
+    axs7[2].set_ylabel("Yaw (rad)")
+    plt.subplots_adjust(hspace=0.4, bottom=0.07, left=0.095, right=0.95)
+    plt.savefig("outputs/" + map.split('/')[2] + "_orinetation_error.jpg")
+    # plt.show()
 
     output_file.close()
     
