@@ -3,6 +3,7 @@ import signal
 import sys
 import argparse
 import numpy as np
+import matplotlib.pyplot as plt
 
 # Constants
 TIME_SCALING = 1.0 # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
@@ -13,49 +14,113 @@ run = True
 def Single_Point2Point():
     # Set goals to go to
     # GOALS = [(1,1,2),(1,-1,4),(-1,-1,2),(-1,1,4)]
-    GOALS = [(1,0,4),(1,0,4),(1,0,4), (1,0,4)]
-    YAWS = [0, 0, 0, 0]
+    GOALS = [(1,0,4),(2,0,4), (3,0,4) , (0,0,4), (-1,0,4)]
+    YAWS = [0,0,0,0,0]
     # Define the quadcopters
-    QUADCOPTER={'q1':{'position':[0,0,4],'orientation':[0,0,0],'L':0.5,'r':0.2,'prop_size':[21,9.5],'weight':15}} #w in kg, L and r in mm, prop_size in in
+    QUADCOPTER={'q1':{'position':[0,0,0],'orientation':[0,0,0],'L':0.5,'r':0.2,'prop_size':[21,9.5],'weight':7}} #w in kg, L and r in mm, prop_size in in
     # Controller parameters
-    CONTROLLER_PARAMETERS = {'Motor_limits':[1000,42500],
-                        'Tilt_limits':[-5,5],
-                        'Yaw_Control_Limits':[-900,900],
+    CONTROLLER_PARAMETERS = {'Motor_limits':[500, 45000],
+                        'Tilt_limits':[-2, 2],
+                        'Yaw_Control_Limits':[-900, 900],
                         'Z_XY_offset':500,
-                        'Linear_PID':{'P':[22000,1,10000],'I':[0,1000,15],'D':[0,10000,6000]},
+                        'Linear_PID':{'P':[5000,0,30000],'I':[0,0,5],'D':[10000,0,12000]},
                         'Linear_To_Angular_Scaler':[1,1,0],
                         'Yaw_Rate_Scaler':0.18,
-                        'Angular_PID':{'P':[1,10,1],'I':[0,1,0],'D':[0,100,100]},
+                        'Angular_PID':{'P':[0,2000,0.01],'I':[0,0,0],'D':[0,800,0.01]},
                         }
 
     # Catch Ctrl+C to stop threads
     signal.signal(signal.SIGINT, signal_handler)
     # Make objects for quadcopter, gui and controller
     quad = quadcopter.Quadcopter(QUADCOPTER)
-    gui_object = gui.GUI(quads=QUADCOPTER)
+    # gui_object = gui.GUI(quads=QUADCOPTER)
     ctrl = controller.Controller_PID_Point2Point(quad.get_state,quad.get_time,quad.set_motor_speeds, quad.get_L, params=CONTROLLER_PARAMETERS,quad_identifier='q1')
+    
     # Start the threads
     quad.start_thread(dt=QUAD_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)
     ctrl.start_thread(update_rate=CONTROLLER_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)
+    
+    path_taken = np.empty((0, 3), float)
+    orientations = np.empty((0, 3), float)
+    times = np.empty(0)
+    input_goal = np.empty((0, 3), float)
+    yaw_goal = np.empty(0)
+
+
     # Update the GUI while switching between destination poitions
-    while(run==True):
-        for goal,y in zip(GOALS,YAWS):
-            ctrl.update_target(goal)
-            ctrl.update_yaw_target(y)
+    # while(run==True):
+    simulation_start_time = quad.get_time()
+    for goal,y in zip(GOALS,YAWS):
+        print(goal)
+        ctrl.update_target(goal)
+        ctrl.update_yaw_target(y)
+        drone_pos = quad.get_position('q1')
+        error = np.linalg.norm(drone_pos-goal)
+        start_time = quad.get_time()
+        time_laps = 0
+        
+        # while error > 1 or time_laps < 3:
+        while time_laps < 10:
+            
+            # gui_object.quads['q1']['position'] = quad.get_position('q1')
+            # gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
+            # gui_object.update()
+            
             drone_pos = quad.get_position('q1')
+            orientation = quad.get_orientation('q1')
+            path_taken = np.append(path_taken, np.array([drone_pos]), axis=0)
+            orientations = np.append(orientations, np.array([orientation]), axis=0)
+            input_goal = np.append(input_goal, np.array([goal]), axis=0)
+            yaw_goal = np.append(yaw_goal, np.array([y]), axis=0)
+
+            
+            time = quad.get_time()
             error = np.linalg.norm(drone_pos-goal)
-            start_time = quad.get_time()
-            time_laps = 0
-            while error > 1.29 or time_laps < 3:
-                gui_object.quads['q1']['position'] = quad.get_position('q1')
-                gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
-                gui_object.update()
-                drone_pos = quad.get_position('q1')
-                error = np.linalg.norm(drone_pos-goal)
-                time_laps = (quad.get_time() - start_time).total_seconds()
-                # print("error:",error, "time passed", time_laps)
+            time_laps = (time - start_time).total_seconds()
+            times = np.append(times, np.array([(time-simulation_start_time).total_seconds()]), axis=0)
+            # print("error:",error, "time passed", time_laps)
+
     quad.stop_thread()
     ctrl.stop_thread()
+
+    #Plot the path
+    fig1, ax1 = plt.subplots(3,2,figsize=(10,  7))
+    fig1.suptitle('Hexacopter PID Control Results', fontsize=16)
+    ax1[0,0].plot(times, path_taken[:,0], label = "x dir")
+    ax1[0,0].plot(times, input_goal[:,0], label = "x goal")
+    ax1[0,0].set_xlabel('time (s)')
+    ax1[0,0].set_ylabel('x (m)')
+    ax1[0,0].legend()
+    
+    ax1[1,0].plot(times, path_taken[:,1], label = "y dir")
+    ax1[1,0].plot(times, input_goal[:,1], label = "y goal")
+    ax1[1,0].set_xlabel('time (s)')
+    ax1[1,0].set_ylabel('y (m)')
+    ax1[1,0].legend()
+    
+    ax1[2,0].plot(times, path_taken[:,2], label = "altitude")
+    ax1[2,0].plot(times, input_goal[:,2], label = "z goal")
+    ax1[2,0].set_xlabel('time (s)')
+    ax1[2,0].set_ylabel('z (m)')
+    ax1[2,0].legend()
+
+    ax1[0,1].plot(times, np.degrees(orientations[:,0]), label = "roll")
+    ax1[0,1].set_xlabel('time (s)')
+    ax1[0,1].set_ylabel('roll (deg)')
+    ax1[0,1].legend()
+    
+    ax1[1,1].plot(times, np.degrees(orientations[:,1]), label = "pitch")
+    ax1[1,1].set_xlabel('time (s)')
+    ax1[1,1].set_ylabel('pitch (deg)')
+    ax1[1,1].legend()
+    
+    ax1[2,1].plot(times, np.degrees(orientations[:,2]), label = "yaw")
+    ax1[2,1].plot(times, np.degrees(yaw_goal), label = "yaw goal")
+    ax1[2,1].set_xlabel('time (s)')
+    ax1[2,1].set_ylabel('yaw (deg)')
+    ax1[2,1].legend()
+    
+    plt.show()
 
 
 

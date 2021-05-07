@@ -46,9 +46,9 @@ class Quadcopter():
             # ixx=((2*self.quads[key]['weight']*self.quads[key]['r']**2)/5)+(2*self.quads[key]['weight']*self.quads[key]['L']**2)
             # iyy=ixx
             # izz=((2*self.quads[key]['weight']*self.quads[key]['r']**2)/5)+(4*self.quads[key]['weight']*self.quads[key]['L']**2)
-            ixx =100#((2*self.quads[key]['weight']*self.quads[key]['r']**2)/5)+(2*self.quads[key]['weight']*self.quads[key]['L']**2)#0.72#0.2208
-            iyy = ixx# 0.74#0.2208
-            izz = 250#((2*self.quads[key]['weight']*self.quads[key]['r']**2)/5)+(4*self.quads[key]['weight']*self.quads[key]['L']**2)#0.64#0.4386
+            ixx = 0.31  #((2*self.quads[key]['weight']*self.quads[key]['r']**2)/5)+(2*self.quads[key]['weight']*self.quads[key]['L']**2)#0.72#0.2208
+            iyy = 0.30 # 0.74#0.2208
+            izz = 0.60 #((2*self.quads[key]['weight']*self.quads[key]['r']**2)/5)+(4*self.quads[key]['weight']*self.quads[key]['L']**2)#0.64#0.4386
             print(ixx, iyy, izz)
             self.quads[key]['I'] = np.array([[ixx,0,0],[0,iyy,0],[0,0,izz]])
             self.quads[key]['invI'] = np.linalg.inv(self.quads[key]['I'])
@@ -115,13 +115,13 @@ class Quadcopter():
         z_val = tau[2]
         throttle = x_dotdot[2]
 
-        m1 = 1/(6*L) * (L * throttle + 2 * x_val - L/self.d *z_val)
-        m2 = 1/(6*L) * (L * throttle + x_val - np.sqrt(3) * y_val + L/self.d *z_val)
-        m3 = 1/(6*L) * (L * throttle - x_val - np.sqrt(3) * y_val - L/self.d *z_val)
-        m4 = 1/(6*L) * (L * throttle - 2 * x_val + L/self.d *z_val)
-        m5 = 1/(6*L) * (L * throttle - x_val + np.sqrt(3) * y_val - L/self.d *z_val)
-        m6 = 1/(6*L) * (L * throttle + x_val + np.sqrt(3) * y_val + L/self.d *z_val)
-        # print("%.2f, %.2f, %.2f, %.2f, %.2f, %.2f" % (M1-m1, M2-m2, M3-m3, M4-m4, M5-m5, M6-m6))
+        m1 = 1/(6*L) * (L * throttle - 2 * x_val - np.sqrt(3) * y_val - L/self.d *z_val)
+        m2 = 1/(6*L) * (L * throttle -     x_val                      + L/self.d *z_val)
+        m3 = 1/(6*L) * (L * throttle - 2 * x_val + np.sqrt(3) * y_val - L/self.d *z_val)
+        m4 = 1/(6*L) * (L * throttle + 2 * x_val + np.sqrt(3) * y_val + L/self.d *z_val)
+        m5 = 1/(6*L) * (L * throttle +     x_val                      - L/self.d *z_val)
+        m6 = 1/(6*L) * (L * throttle + 2 * x_val - np.sqrt(3) * y_val + L/self.d *z_val)
+        # print("%.2f, %.2f, %.2f, %.2f, %.2f, %.2f" % (M1/m1, M2/m2, M3/m3, M4/m4, M5/m5, M6/m6))
 
 
 

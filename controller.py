@@ -91,16 +91,15 @@ class Controller_PID_Point2Point():
         # m2 = throttle + y_val - z_val
         # m3 = throttle - x_val + z_val
         # m4 = throttle - y_val - z_val
-
         #x_roll, y_pitch, z_yaw
         # temp1 = x_val
         # temp2 = y_val
         # y_val = temp1
         # x_val = temp2
-
-        print("pitch torque is: %.2f , pitch error is %.2f" % (y_val, phi_error))
+        # print("pitch torque is: %.2f , pitch error is %.2f" % (y_val, phi_error))
 
         L = self.L
+        #Paper Inverse kinematics
         # m1 = 1/(6*L) * (L * throttle + 2 * x_val                  - L/self.d *z_val)
         # m2 = 1/(6*L) * (L * throttle + x_val - np.sqrt(3) * y_val + L/self.d *z_val)
         # m3 = 1/(6*L) * (L * throttle - x_val - np.sqrt(3) * y_val - L/self.d *z_val)
@@ -108,12 +107,34 @@ class Controller_PID_Point2Point():
         # m5 = 1/(6*L) * (L * throttle - x_val + np.sqrt(3) * y_val - L/self.d *z_val)
         # m6 = 1/(6*L) * (L * throttle + x_val + np.sqrt(3) * y_val + L/self.d *z_val)
 
+        #Inverse Kinematics Works for roll and altitude and yaw
         m1 = 1/(6*L) * (L * throttle - 2 * x_val - np.sqrt(3) * y_val - L/self.d *z_val)
         m2 = 1/(6*L) * (L * throttle -     x_val                      + L/self.d *z_val)
         m3 = 1/(6*L) * (L * throttle - 2 * x_val + np.sqrt(3) * y_val - L/self.d *z_val)
         m4 = 1/(6*L) * (L * throttle + 2 * x_val + np.sqrt(3) * y_val + L/self.d *z_val)
         m5 = 1/(6*L) * (L * throttle +     x_val                      - L/self.d *z_val)
         m6 = 1/(6*L) * (L * throttle + 2 * x_val - np.sqrt(3) * y_val + L/self.d *z_val)
+
+        #New
+        # m1 = 1/(6*L) * (L * throttle - 2 * x_val - np.sqrt(3) * y_val - L/self.d *z_val)
+        # m2 = 1/(6*L) * (L * throttle                                  + L/self.d *z_val)
+        # m3 = 1/(6*L) * (L * throttle - 2 * x_val + np.sqrt(3) * y_val - L/self.d *z_val)
+        # m4 = 1/(6*L) * (L * throttle + 2 * x_val + np.sqrt(3) * y_val + L/self.d *z_val)
+        # m5 = 1/(6*L) * (L * throttle +                                - L/self.d *z_val)
+        # m6 = 1/(6*L) * (L * throttle + 2 * x_val - np.sqrt(3) * y_val + L/self.d *z_val)
+
+
+        #new
+        # m1 = 1/(6*L) * (L * throttle + 2 * x_val - np.sqrt(3) * y_val - L/self.d *z_val)
+        # m2 = 1/(6*L) * (L * throttle +     x_val                      + L/self.d *z_val)
+        # m3 = 1/(6*L) * (L * throttle -     x_val + np.sqrt(3) * y_val - L/self.d *z_val)
+        # m4 = 1/(6*L) * (L * throttle - 2 * x_val + np.sqrt(3) * y_val + L/self.d *z_val)
+        # m5 = 1/(6*L) * (L * throttle -     x_val                      - L/self.d *z_val)
+        # m6 = 1/(6*L) * (L * throttle +     x_val - np.sqrt(3) * y_val + L/self.d *z_val)
+
+
+
+        
 
 
         # m1 = (throttle + 2 * x_val - L/self.d *z_val)
