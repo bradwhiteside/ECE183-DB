@@ -110,17 +110,16 @@ class Quadcopter():
 
 
 
-        x_val = tau[0]
-        y_val = tau[1]
-        z_val = tau[2]
-        throttle = x_dotdot[2]
-
-        m1 = 1/(6*L) * (L * throttle - 2 * x_val - np.sqrt(3) * y_val - L/self.d *z_val)
-        m2 = 1/(6*L) * (L * throttle -     x_val                      + L/self.d *z_val)
-        m3 = 1/(6*L) * (L * throttle - 2 * x_val + np.sqrt(3) * y_val - L/self.d *z_val)
-        m4 = 1/(6*L) * (L * throttle + 2 * x_val + np.sqrt(3) * y_val + L/self.d *z_val)
-        m5 = 1/(6*L) * (L * throttle +     x_val                      - L/self.d *z_val)
-        m6 = 1/(6*L) * (L * throttle + 2 * x_val - np.sqrt(3) * y_val + L/self.d *z_val)
+        # x_val = tau[0]
+        # y_val = tau[1]
+        # z_val = tau[2]
+        # throttle = x_dotdot[2]
+        # m1 = 1/(6*L) * (L * throttle - 2 * x_val - np.sqrt(3) * y_val - L/self.d *z_val)
+        # m2 = 1/(6*L) * (L * throttle -     x_val                      + L/self.d *z_val)
+        # m3 = 1/(6*L) * (L * throttle - 2 * x_val + np.sqrt(3) * y_val - L/self.d *z_val)
+        # m4 = 1/(6*L) * (L * throttle + 2 * x_val + np.sqrt(3) * y_val + L/self.d *z_val)
+        # m5 = 1/(6*L) * (L * throttle +     x_val                      - L/self.d *z_val)
+        # m6 = 1/(6*L) * (L * throttle + 2 * x_val - np.sqrt(3) * y_val + L/self.d *z_val)
         # print("%.2f, %.2f, %.2f, %.2f, %.2f, %.2f" % (M1/m1, M2/m2, M3/m3, M4/m4, M5/m5, M6/m6))
 
 

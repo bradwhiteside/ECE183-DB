@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Constants
-TIME_SCALING = 1.0 # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
+TIME_SCALING = 0.1 # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
 QUAD_DYNAMICS_UPDATE = 0.002 # seconds
 CONTROLLER_DYNAMICS_UPDATE = 0.005 # seconds
 run = True
@@ -14,26 +14,27 @@ run = True
 def Single_Point2Point():
     # Set goals to go to
     # GOALS = [(1,1,2),(1,-1,4),(-1,-1,2),(-1,1,4)]
-    GOALS = [(1,0,4),(2,0,4), (3,0,4) , (0,0,4), (-1,0,4)]
-    YAWS = [0,0,0,0,0]
+    GOALS = [(-1,1,4), (1,-1,4), (2,-1,2), (1,2,3), (1,0,5)]
+    YAWS = [0, 0, 0, 0, 0]
     # Define the quadcopters
-    QUADCOPTER={'q1':{'position':[0,0,0],'orientation':[0,0,0],'L':0.5,'r':0.2,'prop_size':[21,9.5],'weight':7}} #w in kg, L and r in mm, prop_size in in
+    QUADCOPTER={'q1':{'position':[0,0,4],'orientation':[0,0,0],'L':0.5,'r':0.2,'prop_size':[21,9.5],'weight':7}} #w in kg, L and r in mm, prop_size in in
     # Controller parameters
     CONTROLLER_PARAMETERS = {'Motor_limits':[500, 45000],
-                        'Tilt_limits':[-2, 2],
-                        'Yaw_Control_Limits':[-900, 900],
+                        'Tilt_limits':[-2, 2],   #degrees
+                        'Yaw_Control_Limits':[-900,900],
                         'Z_XY_offset':500,
-                        'Linear_PID':{'P':[5000,0,30000],'I':[0,0,5],'D':[10000,0,12000]},
+                        'Linear_PID':{'P':[100000,100000,30000],'I':[0,0,20],'D':[100000,200000,12000]},
                         'Linear_To_Angular_Scaler':[1,1,0],
                         'Yaw_Rate_Scaler':0.18,
-                        'Angular_PID':{'P':[0,2000,0.01],'I':[0,0,0],'D':[0,800,0.01]},
+                        'Angular_PID':{'P':[5000,5000,0.01],'I':[0,0,0],'D':[1000,1000,0.01]},
                         }
+
 
     # Catch Ctrl+C to stop threads
     signal.signal(signal.SIGINT, signal_handler)
     # Make objects for quadcopter, gui and controller
     quad = quadcopter.Quadcopter(QUADCOPTER)
-    # gui_object = gui.GUI(quads=QUADCOPTER)
+    gui_object = gui.GUI(quads=QUADCOPTER)
     ctrl = controller.Controller_PID_Point2Point(quad.get_state,quad.get_time,quad.set_motor_speeds, quad.get_L, params=CONTROLLER_PARAMETERS,quad_identifier='q1')
     
     # Start the threads
@@ -60,7 +61,7 @@ def Single_Point2Point():
         time_laps = 0
         
         # while error > 1 or time_laps < 3:
-        while time_laps < 10:
+        while time_laps < 5:
             
             # gui_object.quads['q1']['position'] = quad.get_position('q1')
             # gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')

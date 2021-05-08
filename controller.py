@@ -64,7 +64,7 @@ class Controller_PID_Point2Point():
         
         #Limiting the throttel in its threshold 
         throttle = np.clip(dest_z_dot,self.Z_LIMITS[0],self.Z_LIMITS[1]) 
-        
+    
         dest_theta = self.LINEAR_TO_ANGULAR_SCALER[0]*(dest_x_dot*math.sin(gamma)-dest_y_dot*math.cos(gamma))
         dest_phi = self.LINEAR_TO_ANGULAR_SCALER[1]*(dest_x_dot*math.cos(gamma)+dest_y_dot*math.sin(gamma))
         dest_gamma = self.yaw_target
@@ -107,31 +107,24 @@ class Controller_PID_Point2Point():
         # m5 = 1/(6*L) * (L * throttle - x_val + np.sqrt(3) * y_val - L/self.d *z_val)
         # m6 = 1/(6*L) * (L * throttle + x_val + np.sqrt(3) * y_val + L/self.d *z_val)
 
-        #Inverse Kinematics Works for roll and altitude and yaw
-        m1 = 1/(6*L) * (L * throttle - 2 * x_val - np.sqrt(3) * y_val - L/self.d *z_val)
-        m2 = 1/(6*L) * (L * throttle -     x_val                      + L/self.d *z_val)
-        m3 = 1/(6*L) * (L * throttle - 2 * x_val + np.sqrt(3) * y_val - L/self.d *z_val)
-        m4 = 1/(6*L) * (L * throttle + 2 * x_val + np.sqrt(3) * y_val + L/self.d *z_val)
-        m5 = 1/(6*L) * (L * throttle +     x_val                      - L/self.d *z_val)
-        m6 = 1/(6*L) * (L * throttle + 2 * x_val - np.sqrt(3) * y_val + L/self.d *z_val)
-
-        #New
+  
+        # #Inverse Kinematics Works for roll and altitude and yaw
         # m1 = 1/(6*L) * (L * throttle - 2 * x_val - np.sqrt(3) * y_val - L/self.d *z_val)
-        # m2 = 1/(6*L) * (L * throttle                                  + L/self.d *z_val)
+        # m2 = 1/(6*L) * (L * throttle -     x_val                      + L/self.d *z_val)
         # m3 = 1/(6*L) * (L * throttle - 2 * x_val + np.sqrt(3) * y_val - L/self.d *z_val)
         # m4 = 1/(6*L) * (L * throttle + 2 * x_val + np.sqrt(3) * y_val + L/self.d *z_val)
-        # m5 = 1/(6*L) * (L * throttle +                                - L/self.d *z_val)
+        # m5 = 1/(6*L) * (L * throttle +     x_val                      - L/self.d *z_val)
         # m6 = 1/(6*L) * (L * throttle + 2 * x_val - np.sqrt(3) * y_val + L/self.d *z_val)
 
+        #New
+        m1 = 1/(6*L) * (L * throttle -     x_val  - np.sqrt(3) * y_val - L/self.d *z_val)
+        m2 = 1/(6*L) * (L * throttle - 2 * x_val                      + L/self.d *z_val)
+        m3 = 1/(6*L) * (L * throttle -     x_val  + np.sqrt(3) * y_val - L/self.d *z_val)
+        m4 = 1/(6*L) * (L * throttle +     x_val  + np.sqrt(3) * y_val + L/self.d *z_val)
+        m5 = 1/(6*L) * (L * throttle + 2 * x_val                      - L/self.d *z_val)
+        m6 = 1/(6*L) * (L * throttle +     x_val  - np.sqrt(3) * y_val + L/self.d *z_val)
 
-        #new
-        # m1 = 1/(6*L) * (L * throttle + 2 * x_val - np.sqrt(3) * y_val - L/self.d *z_val)
-        # m2 = 1/(6*L) * (L * throttle +     x_val                      + L/self.d *z_val)
-        # m3 = 1/(6*L) * (L * throttle -     x_val + np.sqrt(3) * y_val - L/self.d *z_val)
-        # m4 = 1/(6*L) * (L * throttle - 2 * x_val + np.sqrt(3) * y_val + L/self.d *z_val)
-        # m5 = 1/(6*L) * (L * throttle -     x_val                      - L/self.d *z_val)
-        # m6 = 1/(6*L) * (L * throttle +     x_val - np.sqrt(3) * y_val + L/self.d *z_val)
-
+        
 
 
         
