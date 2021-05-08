@@ -7,6 +7,7 @@ else:
     from path_planner.graph import Graph, Node
     from path_planner.grid import Grid
 import numpy as np
+import scipy.ndimage
 import cv2
 from queue import PriorityQueue
 from abc import ABC, abstractmethod
@@ -30,8 +31,8 @@ def collinearity(p):
     return abs(np.linalg.det(matrix))
 
 
-def collinearity_check(p1, p2, p3, epsilon=2):
-    m = np.concatenate((p1, p2, p3)).reshape(-1, 3)
+def collinearity_check(p1, p2, p3, epsilon=5):
+    m = np.vstack((p1, p2, p3))
     if p1[2] <= p2[2] <= p3[2]:
         m[:, 2] = 1
     det = np.linalg.det(m)
@@ -160,62 +161,72 @@ class A_star(PathFinder):
         det = collinearity(p)
         return det + self.h1(cur, target)
 
-    def obstacle_check(self, p1, p2, p3):
-        old_cost = distance(p1, p2) + distance(p2, p3)
-        new_cost = distance(p1, p3)
-        direction = (np.array(p3) - np.array(p1)) / distance(p3, p1)
+    def cost(self, p1, p2):
+        c = distance(p1, p2)
+        direction = (np.array(p2) - np.array(p1)) / c
         pt = np.array(p1, dtype=float)
-        while not (np.round(pt) == np.array(p3)).all():
-            cell = self.grid.get_cell(int(pt[0]), int(pt[1]))
+        while not (np.round(pt) == np.array(p2)).all():
+            cell = self.grid.get_cell(round(pt[0]), round(pt[1]))
             if cell.alpha < 200:
-                return False
+                return np.inf
             pt += direction
-            new_cost += cell.cost
+            c += cell.cost
+        return c
 
-        return new_cost <= old_cost
+    def prune_path(self, path):
+        length = len(path)
+        print("Path is %d points long" % length)
+        path = np.array(path).reshape((length, 3))
 
-    def prune_path(self, path, max_dist=32):
-        print("Pruning path")
-        print("Path is %d points long" % len(path))
+        # From https://stackoverflow.com/questions/20618804/how-to-smooth-a-curve-in-the-right-way
+        box_pts = 12
+        box = np.ones(box_pts) / box_pts
+        x = path[:, 0]
+        y = path[:, 1]
+        path[:, 0] = scipy.ndimage.convolve(x, box)
+        path[:, 1] = scipy.ndimage.convolve(y, box)
+
         i = 0
         pruned_path = path
-        while i < (len(pruned_path) - 2):
+        while i < (pruned_path.shape[0] - 2):
             p1 = pruned_path[i]
-            p2 = pruned_path[i + 1]
-            p3 = pruned_path[i + 2]
-            if distance(p1, p3) <= max_dist and (self.obstacle_check(p1, p2, p3) or collinearity_check(p1, p2, p3)):
-                del pruned_path[i + 1]
+            p2 = pruned_path[i+1]
+            p3 = pruned_path[i+2]
+            if collinearity_check(p1, p2, p3):
+                pruned_path = np.delete(pruned_path, i + 1, axis=0)
             else:
                 i += 1
         print("Pruned Path is %d points long" % len(pruned_path))
         return pruned_path
 
-    def diffuse(self, iter, k=(9, 9), transparent_cost=127):
+    def diffuse(self, iter, k=(9, 9), transparent_cost=196):
         diffused = self.grid.grid.copy()
+        max_i = self.grid.h
+        max_j = self.grid.w
 
-        for i in range(self.grid.w):
-            for j in range(self.grid.h):
+        for i in range(max_i):
+            for j in range(max_j):
                 if diffused[i][j][3] == 0:
                     diffused[i][j][1] = transparent_cost
                     diffused[i][j][3] = 255
 
         for _ in range(iter):
             diffused = cv2.blur(diffused, k, cv2.BORDER_TRANSPARENT)
-            for i in range(self.grid.w):
-                for j in range(self.grid.h):
+            for i in range(max_i):
+                for j in range(max_j):
                     if self.grid.grid[i][j][3] == 0:
                         diffused[i][j][1] = transparent_cost
-                    if diffused[i][j][1] < self.grid.grid[i][j][1]:
+                    elif diffused[i][j][1] < self.grid.grid[i][j][1]:
                         diffused[i][j][1] = self.grid.grid[i][j][1]
 
-        for i in range(self.grid.w):
-            for j in range(self.grid.h):
+        for i in range(max_i):
+            for j in range(max_j):
                 if self.grid.grid[i][j][3] == 0:
                     diffused[i][j] = np.array([0, 0, 0, 0])
 
         return diffused
 
-    def find_path(self, start, target, alt=10, h=h3):
+    def find_path(self, start, target, alt=10, h=h2):
         start = self.grid.get_cell(start[0], start[1], alt)
         target = self.grid.get_cell(target[0], target[1], alt)
         queue = PriorityQueue()
@@ -241,7 +252,8 @@ class A_star(PathFinder):
                 if next in visited:
                     continue
 
-                branch_cost = cur_cost + (next.cost // 16)
+                cell_cost = 0 if next.cost < 32 else np.log2(next.cost)
+                branch_cost = cur_cost + cell_cost
                 queue_cost = branch_cost + h(self, next, target)
                 self.branch[next] = (branch_cost, cur)
                 queue.put((queue_cost, next))
@@ -256,12 +268,16 @@ class A_star(PathFinder):
         # retrace steps
         path = []
         path.append(target.pos)
-        path_cost = self.branch[target][0]
+        path_cost = []
+        path_cost.append(self.branch[target][0])
         n = target
         while self.branch[n][1] != start:
-            path.append(self.branch[n][1].pos)
-            n = self.branch[n][1]
+            c, p = self.branch[n]
+            path.append(p.pos)
+            path_cost.append(c)
+            n = p
         path.append(self.branch[n][1].pos)
+        path_cost.append(0)
 
         pruned_path = self.prune_path(path[::-1])
         if self.DEBUG:
@@ -273,18 +289,22 @@ class A_star(PathFinder):
 
 
 if __name__ == '__main__':
-    map_image = "venues/Test/Test.png"
-    a = A_star(map_image, True)
+    venue = "RoseBowl"
 
-    diffused = a.diffuse(8, (25, 25), 127)
-    cv2.imwrite("venues\Test\TestDiffused.png", diffused)
+    map_image_name = "venues/" + venue + "/" + venue + ".png"
+    a = A_star(map_image_name, True)
+    # a.grid.find_endpoints(127, 255); exit(0)
+
+    diffused = a.diffuse(5, (41, 41))
+    cv2.imwrite(map_image_name[:-4] + "Diffused.png", diffused)
     a.grid.grid = diffused
 
-    path, cost = a.find_path((19, 24), (211, 20))
-    path_image = draw_path(map_image, path)
+    path, cost = a.find_path((128, 296), (534, 1112))
+    path_image = draw_path(map_image_name, path)
     diffused_path_image = draw_path(diffused, path)
-    cv2.imwrite("venues\Test\TestPath.png", path_image)
-    cv2.imwrite("venues\Test\TestDiffusedPath.png", diffused_path_image)
-    cv2.imshow("Path", diffused_path_image)
+    orig_path_image = draw_path(map_image_name[:-4] + "Orig.png", path)
+    cv2.imwrite(map_image_name[:-4] + "DiffusedPath.png", diffused_path_image)
+    cv2.imwrite(map_image_name[:-4] + "OrigPath.png", orig_path_image)
+    # cv2.imshow("Path", diffused_path_image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
