@@ -16,8 +16,13 @@ from abc import ABC, abstractmethod
 def distance(x, y):
     return np.linalg.norm(np.array(x) - np.array(y))
 
+def color2cost(color, shift=6, scale=16):
+    c = 0 if color == 0 else np.log2(color)
+    sig = 1 / (1 + np.exp(-c + shift))
+    return scale * sig
 
-def collinearity(p):
+
+def colinearity(p):
     m = len(p)
     n = len(p[0])
     if m < n:
@@ -31,7 +36,7 @@ def collinearity(p):
     return abs(np.linalg.det(matrix))
 
 
-def collinearity_check(p1, p2, p3, epsilon=5):
+def colinearity_check(p1, p2, p3, epsilon=5):
     m = np.vstack((p1, p2, p3))
     if p1[2] <= p2[2] <= p3[2]:
         m[:, 2] = 1
@@ -158,7 +163,7 @@ class A_star(PathFinder):
             p.append(b.pos)
             n = b
 
-        det = collinearity(p)
+        det = colinearity(p)
         return det + self.h1(cur, target)
 
     def cost(self, p1, p2):
@@ -170,8 +175,13 @@ class A_star(PathFinder):
             if cell.alpha < 200:
                 return np.inf
             pt += direction
-            c += cell.cost
+            c += color2cost(cell.cost)
         return c
+
+    def costs(self, P):
+        total_cost = 0
+        for i in range(len(P) - 1):
+            total_cost += self.cost(P[i], P[i+1])
 
     def prune_path(self, path):
         length = len(path)
@@ -181,18 +191,19 @@ class A_star(PathFinder):
         # From https://stackoverflow.com/questions/20618804/how-to-smooth-a-curve-in-the-right-way
         box_pts = 12
         box = np.ones(box_pts) / box_pts
-        x = path[:, 0]
-        y = path[:, 1]
-        path[:, 0] = scipy.ndimage.convolve(x, box)
-        path[:, 1] = scipy.ndimage.convolve(y, box)
+        for _ in range(3):
+            x = path[:, 0]
+            y = path[:, 1]
+            path[:, 0] = scipy.ndimage.convolve(x, box)
+            path[:, 1] = scipy.ndimage.convolve(y, box)
 
+        # prune colinear pts
         i = 0
-        pruned_path = path
         while i < (pruned_path.shape[0] - 2):
             p1 = pruned_path[i]
             p2 = pruned_path[i+1]
             p3 = pruned_path[i+2]
-            if collinearity_check(p1, p2, p3):
+            if colinearity_check(p1, p2, p3):
                 pruned_path = np.delete(pruned_path, i + 1, axis=0)
             else:
                 i += 1
@@ -226,7 +237,7 @@ class A_star(PathFinder):
 
         return diffused
 
-    def find_path(self, start, target, alt=10, h=h2):
+    def find_path(self, start, target, alt=10, h=h3):
         start = self.grid.get_cell(start[0], start[1], alt)
         target = self.grid.get_cell(target[0], target[1], alt)
         queue = PriorityQueue()
@@ -252,7 +263,8 @@ class A_star(PathFinder):
                 if next in visited:
                     continue
 
-                cell_cost = 0 if next.cost < 32 else np.log2(next.cost)
+                # cell_cost = 0 if next.cost < 32 else np.log2(next.cost)
+                cell_cost = color2cost(next.cost)
                 branch_cost = cur_cost + cell_cost
                 queue_cost = branch_cost + h(self, next, target)
                 self.branch[next] = (branch_cost, cur)
@@ -295,16 +307,21 @@ if __name__ == '__main__':
     a = A_star(map_image_name, True)
     # a.grid.find_endpoints(127, 255); exit(0)
 
-    diffused = a.diffuse(5, (41, 41))
+    # diffused = a.diffuse(12, (15, 15), 196)  # Test
+    diffused = a.diffuse(12, (25, 25), 196)  # Rose Bowl
+    # diffused = a.diffuse(12, (15, 15), 196)  # Coachella
     cv2.imwrite(map_image_name[:-4] + "Diffused.png", diffused)
     a.grid.grid = diffused
 
-    path, cost = a.find_path((128, 296), (534, 1112))
+    # start = (19, 24); target = (211, 20)  # Test
+    start = (46, 950); target = (682, 310)  # RoseBowl
+    # start = (19, 24); target = (211, 20)  # Coachella
+    path, cost = a.find_path(start, target)
     path_image = draw_path(map_image_name, path)
     diffused_path_image = draw_path(diffused, path)
     orig_path_image = draw_path(map_image_name[:-4] + "Orig.png", path)
     cv2.imwrite(map_image_name[:-4] + "DiffusedPath.png", diffused_path_image)
     cv2.imwrite(map_image_name[:-4] + "OrigPath.png", orig_path_image)
     # cv2.imshow("Path", diffused_path_image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
