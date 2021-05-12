@@ -74,7 +74,7 @@ class Controller_PID_Point2Point():
         
         theta_error = dest_theta-theta
         phi_error = dest_phi-phi
-        gamma_dot_error = (self.YAW_RATE_SCALER*self.wrap_angle(dest_gamma-gamma)) - gamma_dot
+        gamma_dot_error =  - gamma_dot
         self.thetai_term += self.ANGULAR_I[0]*theta_error
         self.phii_term += self.ANGULAR_I[1]*phi_error
         self.gammai_term += self.ANGULAR_I[2]*gamma_dot_error
@@ -82,7 +82,7 @@ class Controller_PID_Point2Point():
         #PID(angles)
         x_val = self.ANGULAR_P[0]*(theta_error) + self.ANGULAR_D[0]*(-theta_dot) + self.thetai_term  #roll
         y_val = self.ANGULAR_P[1]*(phi_error) + self.ANGULAR_D[1]*(-phi_dot) + self.phii_term        #pich
-        z_val = self.ANGULAR_P[2]*(gamma_dot_error) + self.gammai_term                               #yaw
+        z_val = self.ANGULAR_P[2]*((self.YAW_RATE_SCALER*self.wrap_angle(dest_gamma-gamma))) + self.gammai_term +  self.ANGULAR_D[2]*  (-gamma_dot)                         #yaw
         z_val = np.clip(z_val,self.YAW_CONTROL_LIMITS[0],self.YAW_CONTROL_LIMITS[1])
         
         
@@ -123,12 +123,6 @@ class Controller_PID_Point2Point():
         m4 = 1/(6*L) * (L * throttle +     x_val  + np.sqrt(3) * y_val + L/self.d *z_val)
         m5 = 1/(6*L) * (L * throttle + 2 * x_val                      - L/self.d *z_val)
         m6 = 1/(6*L) * (L * throttle +     x_val  - np.sqrt(3) * y_val + L/self.d *z_val)
-
-        
-
-
-        
-
 
         # m1 = (throttle + 2 * x_val - L/self.d *z_val)
         # m2 = (throttle + x_val - np.sqrt(3) * y_val + L/self.d *z_val)

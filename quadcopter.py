@@ -68,7 +68,7 @@ class Quadcopter():
         R = np.dot(R_z, np.dot( R_y, R_x ))
         return R
 
-    def wrap_angle(self,val):
+    def wrap_angle(self,val): #converts to -pi to pi
         return( ( val + np.pi) % (2 * np.pi ) - np.pi )
 
     def state_dot(self, time, state, key):
