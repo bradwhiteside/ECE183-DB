@@ -12,7 +12,7 @@ class Grid:
         self.w = image_data.shape[1]
         self.DEBUG = DEBUG
 
-    def get_cell(self, x, y, alt):
+    def get_cell(self, x, y, alt=10):
         return Cell(x, y, self.grid[y][x][0] + alt, self.grid[y][x])
 
     def get_neighbors(self, cell, alt):
@@ -40,6 +40,8 @@ class Grid:
                 if min_R <= self.grid[i][j][2] <= max_R:
                     print("Endpoint of value %d located at (%d, %d)" % (self.grid[i][j][2], j, i))
 
+    def save_image(self, name):
+        cv2.imwrite(name, self.grid)
 
 class Cell:
     def __init__(self, x, y, z, grid_point):
