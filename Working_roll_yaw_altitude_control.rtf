@@ -1,0 +1,88 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2578
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 CONTROLLER_PARAMETERS = \{'Motor_limits':[500, 42500],\
+                        'Tilt_limits':[-2, 2],\
+                        'Yaw_Control_Limits':[-900, 900],\
+                        'Z_XY_offset':500,\
+                        'Linear_PID':\{'P':[3000,0,10000],'I':[0,0,5],'D':[10000,0,12000]\},\
+                        'Linear_To_Angular_Scaler':[1,1,0],\
+                        'Yaw_Rate_Scaler':0.18,\
+                        'Angular_PID':\{'P':[0,2000,0.01],'I':[0,0,0],'D':[0,800,0.01]\},\
+                        \}\
+\
+m1 = 1/(6*L) * (L * throttle - 2 * x_val - np.sqrt(3) * y_val - L/self.d *z_val)\
+        m2 = 1/(6*L) * (L * throttle -     x_val                      + L/self.d *z_val)\
+        m3 = 1/(6*L) * (L * throttle - 2 * x_val + np.sqrt(3) * y_val - L/self.d *z_val)\
+        m4 = 1/(6*L) * (L * throttle + 2 * x_val + np.sqrt(3) * y_val + L/self.d *z_val)\
+        m5 = 1/(6*L) * (L * throttle +     x_val                      - L/self.d *z_val)\
+        m6 = 1/(6*L) * (L * throttle + 2 * x_val - np.sqrt(3) * y_val + L/self.d *z_val)\
+\
+\
+\
+\
+Other parameters that worked:\
+# Controller parameters\
+    CONTROLLER_PARAMETERS = \{'Motor_limits':[500, 42500],\
+                        'Tilt_limits':[-2, 2],\
+                        'Yaw_Control_Limits':[-100, 100],\
+                        'Z_XY_offset':500,\
+                        'Linear_PID':\{'P':[8000,0,50000],'I':[0,0,500],'D':[10000,0,8000]\},\
+                        'Linear_To_Angular_Scaler':[1,1,0],\
+                        'Yaw_Rate_Scaler':0.18,\
+                        'Angular_PID':\{'P':[0,2300,0.01],'I':[0,0,0],'D':[0,600,0]\},\
+\
+\
+\
+\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\
+Unstable roll but controls with lots of spinning:\
+# Controller parameters\
+    CONTROLLER_PARAMETERS = \{'Motor_limits':[500, 45000],\
+                        'Tilt_limits':[-2, 2],\
+                        'Yaw_Control_Limits':[-900, 900],\
+                        'Z_XY_offset':500,\
+                        'Linear_PID':\{'P':[5000,1000,30000],'I':[0,0,5],'D':[10000,0,12000]\},\
+                        'Linear_To_Angular_Scaler':[1,1,0],\
+                        'Yaw_Rate_Scaler':0.18,\
+                        'Angular_PID':\{'P':[1000,2000,0.01],'I':[0,0,0],'D':[0,800,0.005]\},\
+                        \}\
+\
+                 \
+ #Inverse Kinematics Works for roll and altitude and yaw\
+        m1 = 1/(6*L) * (L * throttle - 2 * x_val - np.sqrt(3) * y_val - L/self.d *z_val)\
+        m2 = 1/(6*L) * (L * throttle -     x_val                      + L/self.d *z_val)\
+        m3 = 1/(6*L) * (L * throttle - 2 * x_val + np.sqrt(3) * y_val - L/self.d *z_val)\
+        m4 = 1/(6*L) * (L * throttle + 2 * x_val + np.sqrt(3) * y_val + L/self.d *z_val)\
+        m5 = 1/(6*L) * (L * throttle +     x_val                      - L/self.d *z_val)\
+        m6 = 1/(6*L) * (L * throttle + 2 * x_val - np.sqrt(3) * y_val + L/self.d *z_val)\
+\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\
+\
+\
+# Controller parameters\
+    CONTROLLER_PARAMETERS = \{'Motor_limits':[500, 45000],\
+                        'Tilt_limits':[-2, 2],   #degrees\
+                        'Yaw_Control_Limits':[-900, 900],\
+                        'Z_XY_offset':500,\
+                        'Linear_PID':\{'P':[5000,5000,30000],'I':[0,0,20],'D':[10000,10000,12000]\},\
+                        'Linear_To_Angular_Scaler':[1,1,0],\
+                        'Yaw_Rate_Scaler':0.18,\
+                        'Angular_PID':\{'P':[1000,2000,0.02],'I':[0,0,0],'D':[100,800,0.005]\},\
+                        \}\
+\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\
+Week 7 \
+ # Define the quadcopters\
+    QUADCOPTER=\{'q1':\{'position':[0,0,4],'orientation':[0,0,0],'L':0.5,'r':0.2,'prop_size':[21,9.5],'weight':7\}\} #w in kg, L and r in mm, prop_size in in\
+    # Controller parameters\
+    CONTROLLER_PARAMETERS = \{'Motor_limits':[500, 45000],\
+                        'Tilt_limits':[-2, 2],   #degrees\
+                        'Yaw_Control_Limits':[-900,900],\
+                        'Z_XY_offset':500,\
+                        'Linear_PID':\{'P':[100000,100000,30000],'I':[0,0,20],'D':[200000,200000,12000]\},\
+                        'Linear_To_Angular_Scaler':[1,1,0],\
+                        'Yaw_Rate_Scaler':0.18,\
+                        'Angular_PID':\{'P':[5000,5000,0.01],'I':[0,0,0],'D':[2000,2000,"not used"]\},\
+                        \}}
