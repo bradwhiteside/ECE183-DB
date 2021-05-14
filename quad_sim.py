@@ -7,38 +7,39 @@ import matplotlib.pyplot as plt
 import random
 
 # Constants
-TIME_SCALING = 1 # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
+TIME_SCALING = 1.0 # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
 QUAD_DYNAMICS_UPDATE = 0.002 # seconds
 CONTROLLER_DYNAMICS_UPDATE = 0.005 # seconds
 run = True
 
 def Single_Point2Point():
     # Set goals to go to
-    # GOALS = [(0,0,5),(1,0,2)]
-    # YAWS = [0, 0]
+    GOALS = [(0,0,5),(1,0,3), (0,0,5), (0,1,3)]
+    YAWS = [0, 0, 0,0]
+    start = [0,0,5]
     
     # GOALS = [(0,0,5), (0,0,6), (0,0,7), (0,0,4), (1,0,4), (2,0,4), (0,0,4), (-1,0,4), (-2,0,4), (0,0,4), (0,1,4), (0,2,4), (0,0,4), (0,-1,4), (0,-2,4),(0,0,4),(0,0,4),(0,0,4),(0,0,4),(0,0,4),(0,0,4),(1,1,4),(2,2,4),(0,0,4),(-1,-1,4), (-2,-2,4),(1,-1,4),(-1,1,4), (0,0,4)]
     # YAWS = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,np.pi/4,np.pi/2, 0.70 * np.pi,-np.pi/4,-np.pi/2,-0.70 * np.pi, 0, ]
-
+    #----------------------------------
     GOALS = list()
     for hh in range(4,7):
-        for mm in range(0,2):
-            for nn in range(0,2):
+        for mm in range(0,3):
+            for nn in range(0,3):
                 GOALS.append([mm,nn,hh])
     
     random.shuffle(GOALS)
     YAWS = np.linspace(0,np.pi/2,len(GOALS))
     random.shuffle(YAWS)
-    # YAWS = [0] * len(GOALS)
-
+    YAWS = [0] * len(GOALS)
+    #-------------------------------------
     # Define the quadcopters
-    QUADCOPTER={'q1':{'position':[0,0,4],'orientation':[0,0,0],'L':0.5,'r':0.2,'prop_size':[21,9.5],'weight':7}} #w in kg, L and r in mm, prop_size in in
+    QUADCOPTER={'q1':{'position': start,'orientation':[0,0,0],'L':0.5,'r':0.2,'prop_size':[21,9.5],'weight':7}} #w in kg, L and r in mm, prop_size in in
     # Controller parameters
     CONTROLLER_PARAMETERS = {'Motor_limits':[1000, 45000],
                         'Tilt_limits':[-2, 2],   #degrees
                         'Yaw_Control_Limits':[-900,900],
                         'Z_XY_offset':500,
-                        'Linear_PID':{'P':[100000,100000,20000],'I':[0,0,20],'D':[200000,200000,12000]},
+                        'Linear_PID':{'P':[100000,100000,20000],'I':[20,20,20],'D':[200000,200000,12000]},
                         'Linear_To_Angular_Scaler':[1,1,0],
                         'Yaw_Rate_Scaler':1,
                         'Angular_PID':{'P':[7000,6000,0.1],'I':[0,0,0],'D':[2000,2000,0.01]},
@@ -48,7 +49,7 @@ def Single_Point2Point():
     signal.signal(signal.SIGINT, signal_handler)
     # Make objects for quadcopter, gui and controller
     quad = quadcopter.Quadcopter(QUADCOPTER)
-    # gui_object = gui.GUI(quads=QUADCOPTER)
+    gui_object = gui.GUI(quads=QUADCOPTER)
     ctrl = controller.Controller_PID_Point2Point(quad.get_state,quad.get_time,quad.set_motor_speeds, quad.get_L, params=CONTROLLER_PARAMETERS,quad_identifier='q1')
     
     # Start the threads
@@ -77,9 +78,9 @@ def Single_Point2Point():
         # while error > 1 or time_laps < 3:
         while time_laps < 10:
             
-            # gui_object.quads['q1']['position'] = quad.get_position('q1')
-            # gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
-            # gui_object.update()
+            gui_object.quads['q1']['position'] = quad.get_position('q1')
+            gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
+            gui_object.update()
             
             drone_pos = quad.get_position('q1')
             orientation = quad.get_orientation('q1')
