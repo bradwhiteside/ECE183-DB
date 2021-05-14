@@ -22,7 +22,7 @@ def color2cost(color, shift=6, scale=16):
     return scale * sig
 
 
-def colinearity(p):
+def collinearity(p):
     m = len(p)
     n = len(p[0])
     if m < n:
@@ -36,7 +36,7 @@ def colinearity(p):
     return abs(np.linalg.det(matrix))
 
 
-def colinearity_check(p1, p2, p3, epsilon=5):
+def collinearity_check(p1, p2, p3, epsilon=7):
     m = np.vstack((p1, p2, p3))
     if p1[2] <= p2[2] <= p3[2]:
         m[:, 2] = 1
@@ -163,7 +163,7 @@ class A_star(PathFinder):
             p.append(b.pos)
             n = b
 
-        det = colinearity(p)
+        det = collinearity(p)
         return det + self.h1(cur, target)
 
     def cost(self, p1, p2):
@@ -183,7 +183,7 @@ class A_star(PathFinder):
         for i in range(len(P) - 1):
             total_cost += self.cost(P[i], P[i+1])
 
-    def prune_path(self, path):
+    def prune_path(self, path, path_cost):
         length = len(path)
         print("Path is %d points long" % length)
         path = np.array(path).reshape((length, 3))
@@ -197,13 +197,13 @@ class A_star(PathFinder):
             path[:, 0] = scipy.ndimage.convolve(x, box)
             path[:, 1] = scipy.ndimage.convolve(y, box)
 
-        # prune colinear pts
+        # prune collinear pts
         i = 0
         while i < (pruned_path.shape[0] - 2):
             p1 = pruned_path[i]
             p2 = pruned_path[i+1]
             p3 = pruned_path[i+2]
-            if colinearity_check(p1, p2, p3):
+            if collinearity_check(p1, p2, p3):
                 pruned_path = np.delete(pruned_path, i + 1, axis=0)
             else:
                 i += 1
@@ -291,7 +291,7 @@ class A_star(PathFinder):
         path.append(self.branch[n][1].pos)
         path_cost.append(0)
 
-        pruned_path = self.prune_path(path[::-1])
+        pruned_path = self.prune_path(path[::-1], path_cost[::-1])
         if self.DEBUG:
             path_image = draw_path(self.image, pruned_path)
             path_image_name = self.image[:-4] + "Path.png"
@@ -301,20 +301,20 @@ class A_star(PathFinder):
 
 
 if __name__ == '__main__':
-    venue = "RoseBowl"
+    venue = "Test"
 
     map_image_name = "venues/" + venue + "/" + venue + ".png"
     a = A_star(map_image_name, True)
     # a.grid.find_endpoints(127, 255); exit(0)
 
-    # diffused = a.diffuse(12, (15, 15), 196)  # Test
-    diffused = a.diffuse(12, (25, 25), 196)  # Rose Bowl
+    diffused = a.diffuse(12, (15, 15), 196)  # Test
+    # diffused = a.diffuse(12, (25, 25), 196)  # Rose Bowl
     # diffused = a.diffuse(12, (15, 15), 196)  # Coachella
     cv2.imwrite(map_image_name[:-4] + "Diffused.png", diffused)
     a.grid.grid = diffused
 
-    # start = (19, 24); target = (211, 20)  # Test
-    start = (46, 950); target = (682, 310)  # RoseBowl
+    start = (19, 24); target = (211, 20)  # Test
+    # start = (46, 950); target = (682, 310)  # RoseBowl
     # start = (19, 24); target = (211, 20)  # Coachella
     path, cost = a.find_path(start, target)
     path_image = draw_path(map_image_name, path)
