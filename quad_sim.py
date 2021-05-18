@@ -1,4 +1,4 @@
-import quadcopter,gui,controller
+import quadcopter,gui,pycontroller
 import signal
 import sys
 import argparse
@@ -50,7 +50,7 @@ def Single_Point2Point():
     # Make objects for quadcopter, gui and controller
     quad = quadcopter.Quadcopter(QUADCOPTER)
     gui_object = gui.GUI(quads=QUADCOPTER)
-    ctrl = controller.Controller_PID_Point2Point(quad.get_state,quad.get_time,quad.set_motor_speeds, quad.get_L, params=CONTROLLER_PARAMETERS,quad_identifier='q1')
+    ctrl = pycontroller.Controller_PID_Point2Point(quad.get_state, quad.get_time, quad.set_motor_speeds, quad.get_L, params=CONTROLLER_PARAMETERS, quad_identifier='q1')
     
     # Start the threads
     quad.start_thread(dt=QUAD_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)
@@ -171,8 +171,8 @@ def Multi_Point2Point():
     # Make objects for quadcopter, gui and controllers
     gui_object = gui.GUI(quads=QUADCOPTERS)
     quad = quadcopter.Quadcopter(quads=QUADCOPTERS)
-    ctrl1 = controller.Controller_PID_Point2Point(quad.get_state,quad.get_time,quad.set_motor_speeds,params=CONTROLLER_1_PARAMETERS,quad_identifier='q1')
-    ctrl2 = controller.Controller_PID_Point2Point(quad.get_state,quad.get_time,quad.set_motor_speeds,params=CONTROLLER_2_PARAMETERS,quad_identifier='q2')
+    ctrl1 = pycontroller.Controller_PID_Point2Point(quad.get_state, quad.get_time, quad.set_motor_speeds, params=CONTROLLER_1_PARAMETERS, quad_identifier='q1')
+    ctrl2 = pycontroller.Controller_PID_Point2Point(quad.get_state, quad.get_time, quad.set_motor_speeds, params=CONTROLLER_2_PARAMETERS, quad_identifier='q2')
     # Start the threads
     quad.start_thread(dt=QUAD_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)
     ctrl1.start_thread(update_rate=CONTROLLER_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)
@@ -212,7 +212,7 @@ def Single_Velocity():
     # Make objects for quadcopter, gui and controller
     quad = quadcopter.Quadcopter(QUADCOPTER)
     gui_object = gui.GUI(quads=QUADCOPTER)
-    ctrl = controller.Controller_PID_Velocity(quad.get_state,quad.get_time,quad.set_motor_speeds,params=CONTROLLER_PARAMETERS,quad_identifier='q1')
+    ctrl = pycontroller.Controller_PID_Velocity(quad.get_state, quad.get_time, quad.set_motor_speeds, params=CONTROLLER_PARAMETERS, quad_identifier='q1')
     # Start the threads
     quad.start_thread(dt=QUAD_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)
     ctrl.start_thread(update_rate=CONTROLLER_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)

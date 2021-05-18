@@ -163,7 +163,11 @@ class Controller_PID_Point2Point():
         while(self.run==True):
             time.sleep(0)
             self.time = self.get_time()
-            if (self.time - last_update).total_seconds() > update_rate:
+            if (type(self.time)) != float:
+                elapsed = (self.time - last_update).total_seconds()
+            else:
+                elapsed = (self.time - last_update)
+            if elapsed > update_rate:
                 self.update()
                 last_update = self.time
 
