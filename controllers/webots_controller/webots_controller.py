@@ -31,6 +31,7 @@ prop4.setPosition(float('+inf'))
 prop5.setPosition(float('+inf'))
 prop6.setPosition(float('+inf'))
 
+
 timestep = int(super.getBasicTimeStep())
 # drone.enable(timestep)
 
