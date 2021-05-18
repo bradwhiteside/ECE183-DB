@@ -47,6 +47,7 @@ CONTROLLER_PARAMETERS = {'Motor_limits': [0, MAX_SPEED],
 
 
 def actuate_motors(str, M):
+    print("Setting motors to {}".format(M))
     prop1.setVelocity(-M[0])
     prop2.setVelocity(M[1])
     prop3.setVelocity(-M[2])
@@ -54,6 +55,7 @@ def actuate_motors(str, M):
     prop5.setVelocity(-M[4])
     prop6.setVelocity(M[5])
 
+actuate_motors('', np.full(6, even))
 
 def get_time():
     return super.getTime()
@@ -87,22 +89,23 @@ def get_state(str):
     ang_v = np.array(drone.getVelocity()[3:])
     return np.array([pos, lin_v, ang, ang_v]).flatten()
 
-
-#fc = ctrl.Controller_PID_Point2Point(get_state, get_time, actuate_motors, get_L, CONTROLLER_PARAMETERS, 'q1')
-#fc.start_thread(update_rate=timestep, time_scaling=1)
-
 def reached_goal(cur, goal):
     return np.linalg.norm(cur - goal) < 1
 
 
-path = [(0, 0, 0), (0, 3, 0), (3, 3, 0), (0, 3, 3)]
+path = [(0, 0, 0), (0, 0, 3), (0, 3, 3), (3, 3, 3)]
 path = np.array(path).reshape((4, 3))
 
-actuate_motors('', np.full(6, even))
+fc = ctrl.Controller_PID_Point2Point(get_state, get_time, actuate_motors, get_L, CONTROLLER_PARAMETERS, 'q1')
+fc.start_thread(update_rate=timestep, time_scaling=1)
+fc.update_yaw_target(0)
 
 goal_index = 0
 num_goals = path.shape[0]
 while super.step(timestep) != -1 and goal_index < num_goals:
-    pass
-
-# Enter here exit cleanup code.
+    goal = path[goal_index]
+    print(goal)
+    fc.update_target(goal)
+    pos = drone.getPosition()
+    if reached_goal(pos, goal):
+        goal_index += 1
