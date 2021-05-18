@@ -1,10 +1,14 @@
-import quadcopter,gui,pycontroller
+#!/usr/bin/python
+import quadcopter
+import controller_sim as controller
 import signal
 import sys
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import random
+import time
+from controller import Robot, Supervisor
 
 # Constants
 TIME_SCALING = 1.0 # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
@@ -12,34 +16,56 @@ QUAD_DYNAMICS_UPDATE = 0.002 # seconds
 CONTROLLER_DYNAMICS_UPDATE = 0.005 # seconds
 run = True
 
-def Single_Point2Point():
+def Single_Point2Point(robot, _super):
+    # You should insert a getDevice-like function in order to get the
+    # instance of a device of the robot. Something like:
+    #  motor = robot.getDevice('motorname')
+    #  ds = robot.getDevice('dsname')
+    #  ds.enable(timestep)
+    # Main loop:
+    # - perform simulation steps until Webots is stopping the controller
+    # while robot.step(timestep) != -1:
+        # Read the sensors:
+        # Enter here functions to read sensor data, like:
+        #  val = ds.getValue()
+
+        # Process sensor data here.
+
+        # Enter here functions to send actuator commands, like:
+        # props[0].setVelocity(100)
+        # props[1].setVelocity(100)
+        # props[2].setVelocity(300)
+        # prop.setVelocity(0)
+        # prop4.setVelocity(0)
+        # prop5.setVelocity(0)
+        # prop6.setVelocity(0)
+   
     # Set goals to go to
-    GOALS = [(0,0,5),(1,0,3), (0,0,5), (0,1,3)]
-    YAWS = [0, 0, 0,0]
-    start = [0,0,5]
+    GOALS = [(0,0,5),(0,0,2)]
+    YAWS = [0, 0]
     
     # GOALS = [(0,0,5), (0,0,6), (0,0,7), (0,0,4), (1,0,4), (2,0,4), (0,0,4), (-1,0,4), (-2,0,4), (0,0,4), (0,1,4), (0,2,4), (0,0,4), (0,-1,4), (0,-2,4),(0,0,4),(0,0,4),(0,0,4),(0,0,4),(0,0,4),(0,0,4),(1,1,4),(2,2,4),(0,0,4),(-1,-1,4), (-2,-2,4),(1,-1,4),(-1,1,4), (0,0,4)]
     # YAWS = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,np.pi/4,np.pi/2, 0.70 * np.pi,-np.pi/4,-np.pi/2,-0.70 * np.pi, 0, ]
-    #----------------------------------
-    GOALS = list()
-    for hh in range(4,7):
-        for mm in range(0,3):
-            for nn in range(0,3):
-                GOALS.append([mm,nn,hh])
     
-    random.shuffle(GOALS)
-    YAWS = np.linspace(0,np.pi/2,len(GOALS))
-    random.shuffle(YAWS)
-    YAWS = [0] * len(GOALS)
-    #-------------------------------------
+    # GOALS = list()
+    # for hh in range(4,7):
+    #     for mm in range(0,2):
+    #         for nn in range(0,2):
+    #             GOALS.append([mm,nn,hh])
+    
+    # random.shuffle(GOALS)
+    # YAWS = np.linspace(0,np.pi/2,len(GOALS))
+    # random.shuffle(YAWS)
+    # # YAWS = [0] * len(GOALS)
+
     # Define the quadcopters
-    QUADCOPTER={'q1':{'position': start,'orientation':[0,0,0],'L':0.5,'r':0.2,'prop_size':[21,9.5],'weight':7}} #w in kg, L and r in mm, prop_size in in
+    QUADCOPTER={'q1':{'position':[0,0,4],'orientation':[0,0,0],'L':0.5,'r':0.2,'prop_size':[21,9.5],'weight':7}} #w in kg, L and r in mm, prop_size in in
     # Controller parameters
-    CONTROLLER_PARAMETERS = {'Motor_limits':[1000, 45000],
+    CONTROLLER_PARAMETERS = {'Motor_limits':[10, 310.4],
                         'Tilt_limits':[-2, 2],   #degrees
                         'Yaw_Control_Limits':[-900,900],
                         'Z_XY_offset':500,
-                        'Linear_PID':{'P':[100000,100000,20000],'I':[20,20,20],'D':[200000,200000,12000]},
+                        'Linear_PID':{'P':[100000,100000,20000],'I':[0,0,20],'D':[200000,200000,12000]},
                         'Linear_To_Angular_Scaler':[1,1,0],
                         'Yaw_Rate_Scaler':1,
                         'Angular_PID':{'P':[7000,6000,0.1],'I':[0,0,0],'D':[2000,2000,0.01]},
@@ -48,10 +74,12 @@ def Single_Point2Point():
     # Catch Ctrl+C to stop threads
     signal.signal(signal.SIGINT, signal_handler)
     # Make objects for quadcopter, gui and controller
-    quad = quadcopter.Quadcopter(QUADCOPTER)
-    gui_object = gui.GUI(quads=QUADCOPTER)
-    ctrl = pycontroller.Controller_PID_Point2Point(quad.get_state, quad.get_time, quad.set_motor_speeds, quad.get_L, params=CONTROLLER_PARAMETERS, quad_identifier='q1')
-    
+    print("quad started")
+    quad = quadcopter.Quadcopter(QUADCOPTER, robot, _super)
+    print("quad initiated")
+    ctrl = controller.Controller_PID_Point2Point(quad.get_state,quad.get_time,quad.set_motor_speeds, quad.get_L, params=CONTROLLER_PARAMETERS,quad_identifier='q1')
+    # time.sleep(5)
+    # gui_object = gui.GUI(quads=QUADCOPTER)
     # Start the threads
     quad.start_thread(dt=QUAD_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)
     ctrl.start_thread(update_rate=CONTROLLER_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)
@@ -61,7 +89,6 @@ def Single_Point2Point():
     times = np.empty(0)
     input_goal = np.empty((0, 3), float)
     yaw_goal = np.empty(0)
-
 
     # Update the GUI while switching between destination poitions
     # while(run==True):
@@ -78,26 +105,28 @@ def Single_Point2Point():
         # while error > 1 or time_laps < 3:
         while time_laps < 10:
             
-            gui_object.quads['q1']['position'] = quad.get_position('q1')
-            gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
-            gui_object.update()
+            # gui_object.quads['q1']['position'] = quad.get_position('q1')
+            # gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
+            # gui_object.update()
             
-            drone_pos = quad.get_position('q1')
-            orientation = quad.get_orientation('q1')
-            path_taken = np.append(path_taken, np.array([drone_pos]), axis=0)
-            orientations = np.append(orientations, np.array([orientation]), axis=0)
-            input_goal = np.append(input_goal, np.array([goal]), axis=0)
-            yaw_goal = np.append(yaw_goal, np.array([y]), axis=0)
+            # drone_pos = quad.get_position('q1')
+            # orientation = quad.get_orientation('q1')
+            # path_taken = np.append(path_taken, np.array([drone_pos]), axis=0)
+            # orientations = np.append(orientations, np.array([orientation]), axis=0)
+            # input_goal = np.append(input_goal, np.array([goal]), axis=0)
+            # yaw_goal = np.append(yaw_goal, np.array([y]), axis=0)
 
             
             time = quad.get_time()
-            error = np.linalg.norm(drone_pos-goal)
+            # error = np.linalg.norm(drone_pos-goal)
             time_laps = (time - start_time).total_seconds()
             times = np.append(times, np.array([(time-simulation_start_time).total_seconds()]), axis=0)
             # print("error:",error, "time passed", time_laps)
 
     quad.stop_thread()
     ctrl.stop_thread()
+
+    """
 
     #Plot the path
     fig1, ax1 = plt.subplots(3,2,figsize=(10,  7))
@@ -137,6 +166,7 @@ def Single_Point2Point():
     ax1[2,1].legend()
     
     plt.show()
+    """
 
 
 def Multi_Point2Point():
@@ -171,8 +201,8 @@ def Multi_Point2Point():
     # Make objects for quadcopter, gui and controllers
     gui_object = gui.GUI(quads=QUADCOPTERS)
     quad = quadcopter.Quadcopter(quads=QUADCOPTERS)
-    ctrl1 = pycontroller.Controller_PID_Point2Point(quad.get_state, quad.get_time, quad.set_motor_speeds, params=CONTROLLER_1_PARAMETERS, quad_identifier='q1')
-    ctrl2 = pycontroller.Controller_PID_Point2Point(quad.get_state, quad.get_time, quad.set_motor_speeds, params=CONTROLLER_2_PARAMETERS, quad_identifier='q2')
+    ctrl1 = controller.Controller_PID_Point2Point(quad.get_state,quad.get_time,quad.set_motor_speeds,params=CONTROLLER_1_PARAMETERS,quad_identifier='q1')
+    ctrl2 = controller.Controller_PID_Point2Point(quad.get_state,quad.get_time,quad.set_motor_speeds,params=CONTROLLER_2_PARAMETERS,quad_identifier='q2')
     # Start the threads
     quad.start_thread(dt=QUAD_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)
     ctrl1.start_thread(update_rate=CONTROLLER_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)
@@ -212,7 +242,7 @@ def Single_Velocity():
     # Make objects for quadcopter, gui and controller
     quad = quadcopter.Quadcopter(QUADCOPTER)
     gui_object = gui.GUI(quads=QUADCOPTER)
-    ctrl = pycontroller.Controller_PID_Velocity(quad.get_state, quad.get_time, quad.set_motor_speeds, params=CONTROLLER_PARAMETERS, quad_identifier='q1')
+    ctrl = controller.Controller_PID_Velocity(quad.get_state,quad.get_time,quad.set_motor_speeds,params=CONTROLLER_PARAMETERS,quad_identifier='q1')
     # Start the threads
     quad.start_thread(dt=QUAD_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)
     ctrl.start_thread(update_rate=CONTROLLER_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)
@@ -252,3 +282,5 @@ if __name__ == "__main__":
         Multi_Point2Point()
     elif args.sim == 'single_velocity':
         Single_Velocity()
+    else:
+        Single_Point2Point()
