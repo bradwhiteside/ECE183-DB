@@ -1,4 +1,3 @@
-#!/usr/bin/python
 import quadcopter
 import controller_sim as controller
 from controller import Robot, Supervisor
@@ -21,6 +20,6 @@ if __name__ == "__main__":
     # robot = Robot()
     robot = 1
     super = Supervisor()
-    print("Hello")
+    print("Hello!!!!")
     Single_Point2Point(robot, super)
    

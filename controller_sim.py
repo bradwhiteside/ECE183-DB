@@ -11,9 +11,10 @@ class Controller_PID_Point2Point():
         self.get_time = get_time
         self.get_L  = get_L
         self.MOTOR_LIMITS = params['Motor_limits']
+        self.WEBOT_MOTOR_LIMITS = params['Webots_motor_limits']
         self.TILT_LIMITS = [(params['Tilt_limits'][0]/180.0)*3.14,(params['Tilt_limits'][1]/180.0)*3.14]
         self.YAW_CONTROL_LIMITS = params['Yaw_Control_Limits']
-        self.Z_LIMITS = [self.MOTOR_LIMITS[0]+params['Z_XY_offset'],self.MOTOR_LIMITS[1]-params['Z_XY_offset']]
+        self.Z_LIMITS = [self.MOTOR_LIMITS[0] + params['Z_XY_offset'],self.MOTOR_LIMITS[1] -params['Z_XY_offset']]
         self.LINEAR_P = params['Linear_PID']['P']
         self.LINEAR_I = params['Linear_PID']['I']
         self.LINEAR_D = params['Linear_PID']['D']
@@ -48,7 +49,9 @@ class Controller_PID_Point2Point():
         #Get the target pos
         [dest_x,dest_y,dest_z] = self.target
         #Get state
-        [x,y,z,x_dot,y_dot,z_dot,theta,phi,gamma,theta_dot,phi_dot,gamma_dot] = self.get_state(self.quad_identifier)
+        [x,z,y,x_dot,z_dot,y_dot,theta,phi,gamma,theta_dot,phi_dot,gamma_dot] = self.get_state(self.quad_identifier)
+        
+        # print(z)
         # print(gamma_dot)
         #Get errors
         x_error = dest_x-x
@@ -120,12 +123,14 @@ class Controller_PID_Point2Point():
         # m6 = 1/(6*L) * (L * throttle + 2 * x_val - np.sqrt(3) * y_val + L/self.d *z_val)
 
         #New
+        # print(z_val)
         m1 = 1/(6*L) * (L * throttle -     x_val  - np.sqrt(3) * y_val - L/self.d *z_val)
         m2 = 1/(6*L) * (L * throttle - 2 * x_val                      + L/self.d *z_val)
         m3 = 1/(6*L) * (L * throttle -     x_val  + np.sqrt(3) * y_val - L/self.d *z_val)
         m4 = 1/(6*L) * (L * throttle +     x_val  + np.sqrt(3) * y_val + L/self.d *z_val)
         m5 = 1/(6*L) * (L * throttle + 2 * x_val                      - L/self.d *z_val)
         m6 = 1/(6*L) * (L * throttle +     x_val  - np.sqrt(3) * y_val + L/self.d *z_val)
+
 
         # m1 = (throttle + 2 * x_val - L/self.d *z_val)
         # m2 = (throttle + x_val - np.sqrt(3) * y_val + L/self.d *z_val)
@@ -148,7 +153,7 @@ class Controller_PID_Point2Point():
         # m4 = throttle - x_val - y_val + z_val
         # m5 = throttle - x_val - z_val
         # m6 = throttle - x_val + y_val + z_val
-        M = np.clip([m1,m2,m3,m4,m5,m6],self.MOTOR_LIMITS[0],self.MOTOR_LIMITS[1])
+        M = np.clip([m1,m2,m3,m4,m5,m6],self.WEBOT_MOTOR_LIMITS[0],self.WEBOT_MOTOR_LIMITS[1])
         self.actuate_motors(self.quad_identifier,M)
 
     def update_target(self,target):

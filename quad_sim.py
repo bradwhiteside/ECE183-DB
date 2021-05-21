@@ -1,4 +1,3 @@
-#!/usr/bin/python
 import quadcopter
 import controller_sim as controller
 import signal
@@ -12,8 +11,8 @@ from controller import Robot, Supervisor
 
 # Constants
 TIME_SCALING = 1.0 # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
-QUAD_DYNAMICS_UPDATE = 0.002 # seconds
-CONTROLLER_DYNAMICS_UPDATE = 0.005 # seconds
+QUAD_DYNAMICS_UPDATE = 0.001 # seconds
+CONTROLLER_DYNAMICS_UPDATE = 0.002 # seconds
 run = True
 
 def Single_Point2Point(robot, _super):
@@ -41,8 +40,8 @@ def Single_Point2Point(robot, _super):
         # prop6.setVelocity(0)
    
     # Set goals to go to
-    GOALS = [(0,0,5),(0,0,2)]
-    YAWS = [0, 0]
+    GOALS = [(0,0,1),(0,0,3)]
+    YAWS = [np.pi/4, np.pi/2]
     
     # GOALS = [(0,0,5), (0,0,6), (0,0,7), (0,0,4), (1,0,4), (2,0,4), (0,0,4), (-1,0,4), (-2,0,4), (0,0,4), (0,1,4), (0,2,4), (0,0,4), (0,-1,4), (0,-2,4),(0,0,4),(0,0,4),(0,0,4),(0,0,4),(0,0,4),(0,0,4),(1,1,4),(2,2,4),(0,0,4),(-1,-1,4), (-2,-2,4),(1,-1,4),(-1,1,4), (0,0,4)]
     # YAWS = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,np.pi/4,np.pi/2, 0.70 * np.pi,-np.pi/4,-np.pi/2,-0.70 * np.pi, 0, ]
@@ -61,14 +60,15 @@ def Single_Point2Point(robot, _super):
     # Define the quadcopters
     QUADCOPTER={'q1':{'position':[0,0,4],'orientation':[0,0,0],'L':0.5,'r':0.2,'prop_size':[21,9.5],'weight':7}} #w in kg, L and r in mm, prop_size in in
     # Controller parameters
-    CONTROLLER_PARAMETERS = {'Motor_limits':[10, 310.4],
+    CONTROLLER_PARAMETERS = {'Motor_limits':[10, 2200],
+                             'Webots_motor_limits':[10, 440],
                         'Tilt_limits':[-2, 2],   #degrees
                         'Yaw_Control_Limits':[-900,900],
-                        'Z_XY_offset':500,
-                        'Linear_PID':{'P':[100000,100000,20000],'I':[0,0,20],'D':[200000,200000,12000]},
+                        'Z_XY_offset':0,
+                        'Linear_PID':{'P':[0,0,20E4],'I':[0,2000,0],'D':[0,0,3E6]},
                         'Linear_To_Angular_Scaler':[1,1,0],
                         'Yaw_Rate_Scaler':1,
-                        'Angular_PID':{'P':[7000,6000,0.1],'I':[0,0,0],'D':[2000,2000,0.01]},
+                        'Angular_PID':{'P':[0,0,0],'I':[0,0,0],'D':[0, 0, 0.1]},
                         }
 
     # Catch Ctrl+C to stop threads
@@ -103,7 +103,7 @@ def Single_Point2Point(robot, _super):
         time_laps = 0
         
         # while error > 1 or time_laps < 3:
-        while time_laps < 10:
+        while time_laps < 50:
             
             # gui_object.quads['q1']['position'] = quad.get_position('q1')
             # gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
@@ -123,6 +123,7 @@ def Single_Point2Point(robot, _super):
             times = np.append(times, np.array([(time-simulation_start_time).total_seconds()]), axis=0)
             # print("error:",error, "time passed", time_laps)
 
+    print("Done")
     quad.stop_thread()
     ctrl.stop_thread()
 

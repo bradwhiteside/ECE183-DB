@@ -62,6 +62,7 @@ class Quadcopter():
         self.hexacpter = _super
         self.drone = self.hexacpter.getFromDef('drone')
         self.webot_timestep = int(self.hexacpter.getBasicTimeStep())
+        print("time step is:",self.webot_timestep)
 
         #Motors
         MAX_SPEED = 310.4
@@ -132,6 +133,7 @@ class Quadcopter():
         self.props[3].setVelocity(speeds[3])
         self.props[4].setVelocity(-speeds[4])
         self.props[5].setVelocity(speeds[5])
+        # print(speeds)
         # self.quads[quad_name]['m1'].set_speed(speeds[0])
         # self.quads[quad_name]['m2'].set_speed(speeds[1])
         # self.quads[quad_name]['m3'].set_speed(speeds[2])
