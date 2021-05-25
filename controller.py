@@ -4,10 +4,11 @@ import time
 import threading
 
 class Controller_PID_Point2Point():
-    def __init__(self, get_state, get_time, actuate_motors, get_L, params,  quad_identifier):
+    def __init__(self, get_state, get_time, actuate_motors, get_estimated_state, get_L, params,  quad_identifier):
         self.quad_identifier = quad_identifier
         self.actuate_motors = actuate_motors
         self.get_state = get_state
+        self.get_estimated_state = get_estimated_state
         self.get_time = get_time
         self.get_L  = get_L
         self.MOTOR_LIMITS = params['Motor_limits']
@@ -47,7 +48,9 @@ class Controller_PID_Point2Point():
         #Get the target pos
         [dest_x,dest_y,dest_z] = self.target
         #Get state
-        [x,y,z,x_dot,y_dot,z_dot,theta,phi,gamma,theta_dot,phi_dot,gamma_dot] = self.get_state(self.quad_identifier)
+        # [x,y,z,x_dot,y_dot,z_dot,theta,phi,gamma,theta_dot,phi_dot,gamma_dot] = self.get_state(self.quad_identifier)
+        [x,y,z,x_dot,y_dot,z_dot,theta,phi,gamma,theta_dot,phi_dot,gamma_dot] = self.get_estimated_state(self.quad_identifier)
+
         #Get errors
         x_error = dest_x-x
         y_error = dest_y-y
@@ -70,6 +73,7 @@ class Controller_PID_Point2Point():
         dest_phi = self.LINEAR_TO_ANGULAR_SCALER[1]*(dest_x_dot*math.cos(gamma)+dest_y_dot*math.sin(gamma))
         dest_gamma = self.yaw_target
         
+
         dest_theta,dest_phi = np.clip(dest_theta,self.TILT_LIMITS[0],self.TILT_LIMITS[1]),np.clip(dest_phi,self.TILT_LIMITS[0],self.TILT_LIMITS[1])
         
         theta_error = dest_theta-theta
@@ -82,35 +86,8 @@ class Controller_PID_Point2Point():
         #PID(angles)
         x_val = self.ANGULAR_P[0]*(theta_error) + self.ANGULAR_D[0]*(-theta_dot) + self.thetai_term  #roll
         y_val = self.ANGULAR_P[1]*(phi_error) + self.ANGULAR_D[1]*(-phi_dot) + self.phii_term        #pich
-        z_val = self.ANGULAR_P[2]*((self.YAW_RATE_SCALER*self.wrap_angle(dest_gamma-gamma))) + self.gammai_term +  self.ANGULAR_D[2]*  (-gamma_dot)                         #yaw
+        z_val = self.ANGULAR_P[2]*((self.YAW_RATE_SCALER*self.wrap_angle(dest_gamma-gamma))) + self.gammai_term +  self.ANGULAR_D[2]*  (-gamma_dot)#yaw
         z_val = np.clip(z_val,self.YAW_CONTROL_LIMITS[0],self.YAW_CONTROL_LIMITS[1])
-        
-        # [dest_x,dest_y,dest_z] = self.target
-        # [x,y,z,x_dot,y_dot,z_dot,theta,phi,gamma,theta_dot,phi_dot,gamma_dot] = self.get_state(self.quad_identifier)
-        # x_error = dest_x-x
-        # y_error = dest_y-y
-        # z_error = dest_z-z
-        # self.xi_term += self.LINEAR_I[0]*x_error
-        # self.yi_term += self.LINEAR_I[1]*y_error
-        # self.zi_term += self.LINEAR_I[2]*z_error
-        # dest_x_dot = self.LINEAR_P[0]*(x_error) + self.LINEAR_D[0]*(-x_dot) + self.xi_term
-        # dest_y_dot = self.LINEAR_P[1]*(y_error) + self.LINEAR_D[1]*(-y_dot) + self.yi_term
-        # dest_z_dot = self.LINEAR_P[2]*(z_error) + self.LINEAR_D[2]*(-z_dot) + self.zi_term
-        # throttle = np.clip(dest_z_dot,self.Z_LIMITS[0],self.Z_LIMITS[1])
-        # dest_theta = self.LINEAR_TO_ANGULAR_SCALER[0]*(dest_x_dot*math.sin(gamma)-dest_y_dot*math.cos(gamma))
-        # dest_phi = self.LINEAR_TO_ANGULAR_SCALER[1]*(dest_x_dot*math.cos(gamma)+dest_y_dot*math.sin(gamma))
-        # dest_gamma = self.yaw_target
-        # dest_theta,dest_phi = np.clip(dest_theta,self.TILT_LIMITS[0],self.TILT_LIMITS[1]),np.clip(dest_phi,self.TILT_LIMITS[0],self.TILT_LIMITS[1])
-        # theta_error = dest_theta-theta
-        # phi_error = dest_phi-phi
-        # gamma_dot_error = (self.YAW_RATE_SCALER*self.wrap_angle(dest_gamma-gamma)) - gamma_dot
-        # self.thetai_term += self.ANGULAR_I[0]*theta_error
-        # self.phii_term += self.ANGULAR_I[1]*phi_error
-        # self.gammai_term += self.ANGULAR_I[2]*gamma_dot_error
-        # x_val = self.ANGULAR_P[0]*(theta_error) + self.ANGULAR_D[0]*(-theta_dot) + self.thetai_term
-        # y_val = self.ANGULAR_P[1]*(phi_error) + self.ANGULAR_D[1]*(-phi_dot) + self.phii_term
-        # z_val = self.ANGULAR_P[2]*(gamma_dot_error) + self.gammai_term
-        # z_val = np.clip(z_val,self.YAW_CONTROL_LIMITS[0],self.YAW_CONTROL_LIMITS[1])
         
         
         #Motor input values
