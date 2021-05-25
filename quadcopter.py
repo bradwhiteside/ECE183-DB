@@ -29,6 +29,7 @@ class Quadcopter():
         self.quads = quads
         self.g = gravity
         self.d = d #drag factor
+        self.coef = 0.126 #Thrust ot drag conversion coefficent
         self.thread_object = None
         self.ode =  scipy.integrate.ode(self.state_dot).set_integrator('vode',nsteps=500,method='bdf')
         self.time = datetime.datetime.now()
@@ -52,6 +53,7 @@ class Quadcopter():
             print(ixx, iyy, izz)
             self.quads[key]['I'] = np.array([[ixx,0,0],[0,iyy,0],[0,0,izz]])
             self.quads[key]['invI'] = np.linalg.inv(self.quads[key]['I'])
+            self.tau = np.zeros(4)
 
         self.run = True
 
@@ -106,10 +108,11 @@ class Quadcopter():
         #Torques
         tau = np.array([L*(-M2+M5+0.5*(-M1-M3+M4+M6)), 
                         L*(np.sqrt(3)/2)*(-M1+M3+M4-M6), 
-                        self.d*(-(self.quads[key]['m1'].speed)**2+(self.quads[key]['m2'].speed)**2-(self.quads[key]['m3'].speed)**2+(self.quads[key]['m4'].speed)**2-(self.quads[key]['m5'].speed)**2+(self.quads[key]['m6'].speed)**2)])
-
-
-
+                        self.coef*(-self.quads[key]['m1'].thrust+self.quads[key]['m2'].thrust-self.quads[key]['m3'].thrust+self.quads[key]['m4'].thrust-self.quads[key]['m5'].thrust+self.quads[key]['m6'].thrust)])
+                        # self.d*(-(self.quads[key]['m1'].speed)**2+(self.quads[key]['m2'].speed)**2-(self.quads[key]['m3'].speed)**2+(self.quads[key]['m4'].speed)**2-(self.quads[key]['m5'].speed)**2+(self.quads[key]['m6'].speed)**2)])
+        
+        self.tau[0:3] = tau
+        self.tau[3] = x_dotdot[2] * self.quads[key]['weight']
         # x_val = tau[0]
         # y_val = tau[1]
         # z_val = tau[2]
@@ -145,6 +148,18 @@ class Quadcopter():
         self.quads[quad_name]['m4'].set_speed(speeds[3])
         self.quads[quad_name]['m5'].set_speed(speeds[4])
         self.quads[quad_name]['m6'].set_speed(speeds[5])
+
+    def get_motor_speeds(self,quad_name):
+        return np.array([self.quads[quad_name]['m1'].speed,
+        				 self.quads[quad_name]['m2'].speed,
+        				 self.quads[quad_name]['m3'].speed,
+        				 self.quads[quad_name]['m4'].speed,
+        				 self.quads[quad_name]['m5'].speed,
+        				 self.quads[quad_name]['m6'].speed])
+        
+    
+    def get_tau(self):
+        return self.tau
 
     def get_L(self):
         return self.quads['q1']['L']
