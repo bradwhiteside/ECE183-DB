@@ -28,7 +28,10 @@ class EKF():
         #Estimate varibles
         self.mean = np.zeros(12)
         self.cov = np.eye(12,12) * 0.1
-        self.Q, self.R = get_covariances(self.quad_id) #3*3 for now
+
+        self.Q, self.R, self.Q_gyro = get_covariances(self.quad_id) #3*3 for now
+
+        self.Q[1,1] =np.sqrt(self.Q_gyro[1,1] +  self.Q[1,1])
   
 
 
@@ -41,19 +44,6 @@ class EKF():
         self.time_update_rate = 0.005   # the start thread changes it
         self.run = True
 
-    
-    def rotation_matrix_in_to_bd(self,angles):
-        # ct = math.cos(angles[0])
-        # cp = math.cos(angles[1])
-        # cs = math.cos(angles[2])
-        # st = math.sin(angles[0])
-        # sp = math.sin(angles[1])
-        # ss = math.sin(angles[2])
-        # R = np.array([[cp*cs-ct*sp*ss, -cs*sp-cp*ct*ss, st*ss], 
-        #               [ct*cs*sp+cp*ss,  cp*ct*cs-sp*ss, -cs*st],
-        #               [sp*st,           cp*st,          ct    ]])
-        R = np.linalg.inv(self.rotation_matrix(angles))
-        return R
 
     def rotation_matrix(self,angles):
         ct = math.cos(angles[0])
@@ -75,20 +65,10 @@ class EKF():
         a_x = accel[0]
         a_y = accel[1]
         a_z = accel[2]
-        theta = np.arctan2(a_y, a_z)
-        phi = np.arctan2(a_x, a_z)
-        # phi = np.arcsin(a_x/self.g) 
-        gamma = 0# np.arctan2(a_x, a_z)  #Not Used
-        # theta = np.arctan2(a_x, (a_y**2+a_z**2)**0.5)
-        # phi = np.arctan2(a_y, (a_x**2+a_z**2)**0.5)
-        # gamma = np.arctan2((a_x**2+a_y**2)**0.5, a_z) - np.pi
         
-        #Turning around the X axis results in a vector on the Y-axis
-        # pitch = np.arctan2(accel[2], accel[0])
-
-        # #Turning around the Y axis results in a vector on the X-axis
-        # roll = np.arctan2(accel[2], accel[0])
-        # gamma = 0
+        phi = -np.arctan2(a_y, (a_x**2+a_z**2)**0.5)
+        theta = np.arctan2(a_x, (a_y**2+a_z**2)**0.5)
+        gamma = np.arctan2((a_x**2+a_y**2)**0.5, a_z) - np.pi
         
         return np.array([phi, theta,  gamma])
 
@@ -96,39 +76,31 @@ class EKF():
     def time_update(self):
         #[x,y,z,x_dot,y_dot,z_dot,theta,phi,gamma,theta_dot,phi_dot,gamma_dot]
         #Complementary Filter for orientation estimation
+        
         #Gyro
         self.mean[9:12] = self.get_Gyro(self.quad_id)   #theta_dot, phi_dot, gamma_dot
-        self.mean[6:9] += self.mean[9:12] * self.time_update_rate
-        # print(np.degrees(self.mean[6:9]- self.get_states(self.quad_id)[6:9]))
+        self.mean[6:9] += self.mean[9:12] * self.time_update_rate #calc angles using the gyro
         
-        #IMU Accel (This calculates)
-        # R = self.rotation_matrix(angles = self.get_orientations(self.quad_id)) #My understangin is that R is body to inertial rotation
-        # R = self.rotation_matrix(angles = self.mean[6:9]) #My understangin is that R is body to inertial rotation
-        # accel_mean_IMU = self.get_IMU_accelertaions(self.quad_id)
-        # accel_mean = R @ accel_mean_IMU
-        accel_mean = self.get_linear_accelerations(self.quad_id) # Doing this since inverse takes computation time
-    
-       
+        accel_mean = self.get_IMU_accelertaions(self.quad_id)
+        complementary_angles = self.convert_accel_to_angle(accel_mean) #self.time_update_rate **0 #calc angles using the accelerometer
+        
+        correction_gain = 0.5
+        complementary_angles *= correction_gain
         #Complementary Filter
-        # complementary_angles = self.convert_accel_to_angle(accel_mean) * self.time_update_rate **2
-        # # print("g_angle:", np.degrees(self.mean[6:9]))
-        # # print("c_angle:", np.degrees(complementary_angles)) # - self.get_states(self.quad_id)[6:9])
-        G1 = 1
-        G2 = 0
-        self.mean[6:8] = G1 * self.mean[6:8] #+ G2 * complementary_angles[0:2]
+        G1 = 0.80
+        G2 = 0.2
+        self.mean[6:8] = G1 * self.mean[6:8] + G2 * complementary_angles[0:2]  #only for roll and pitch
         # print(np.degrees(self.mean[6:9] - self.get_states(self.quad_id)[6:9]))
 
-
-        linear_accelerations = accel_mean  # R @ accel_mean 
-        self.mean[3:6] += linear_accelerations * self.time_update_rate
-        # self.mean[3:6] += self.get_linear_accelerations(self.quad_id) * self.time_update_rate  
-
-        
         #Kalman filter for x,y,z
-        #assuming Time update is done with the same rat for all sensors 
-        [x_dot, y_dot, z_dot] = self.mean[3:6]
-        F = np.array([x_dot, y_dot, z_dot])
-        self.mean[0:3] = self.mean[0:3] + F * self.time_update_rate 
+        roll_pitch_yaw_angles = self.mean[6:9]
+        roll_pitch_yaw_angles[2] = self.get_states(self.quad_id)[8]   
+
+        linear_accelerations = (self.rotation_matrix(roll_pitch_yaw_angles) @ (accel_mean)) + [0,0, self.g] # we add the gravity since when the drone is not accelrating
+
+        self.mean[3:6] += linear_accelerations * self.time_update_rate
+        F = self.mean[3:6]
+        self.mean[0:3] += F * self.time_update_rate
         # print(self.mean[2] - self.get_positions(self.quad_id)[2])
         # print(self.mean[0:3])
         A = np.eye(3,3)
@@ -137,8 +109,7 @@ class EKF():
         # print(np.degrees(self.mean[6:9] - self.get_states(self.quad_id)[6:9]))
         
     def observation_update(self):
-        #  c = np.eye(3)
-        # _y = np.dot(c,self.mean[0:3])  #c(_x)
+        #Start here
         _y = self.mean[0:3] 
         
         C = np.eye(3,3)
@@ -153,6 +124,8 @@ class EKF():
         LC = L @ C
         I = np.eye(LC.shape[0],LC.shape[1])
         P  = (I - LC) @ P
+
+        #State and Cov update
         self.mean[0:3] +=  L @ (y - _y)
         self.cov[0:3,0:3] = P
 
