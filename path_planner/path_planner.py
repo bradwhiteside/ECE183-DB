@@ -1,11 +1,13 @@
 import yaml
 
+PATH_PREFIX = './'
 if __name__ == '__main__':
     from graph import Graph, Node
     from grid import Grid
 else:
     from path_planner.graph import Graph, Node
     from path_planner.grid import Grid
+    PATH_PREFIX = './path_planner/'
 import numpy as np
 import scipy.ndimage
 import cv2
@@ -204,7 +206,7 @@ class A_star(PathFinder):
 
     def prune_path(self, path, path_cost):
         length = len(path)
-        print("Path is %d points long" % length)
+        debug("Path is %d points long" % length)
         pruned_path = np.array(path).reshape((length, 3))
 
         # From https://stackoverflow.com/questions/20618804/how-to-smooth-a-curve-in-the-right-way
@@ -226,7 +228,7 @@ class A_star(PathFinder):
                 pruned_path = np.delete(pruned_path, i + 1, axis=0)
             else:
                 i += 1
-        print("Pruned Path is %d points long" % len(pruned_path))
+        debug("Pruned Path is %d points long" % len(pruned_path))
         return pruned_path
 
     def diffuse(self, iter, k=(9, 9), transparent_cost=196, USE_CACHE=True):
@@ -274,7 +276,7 @@ class A_star(PathFinder):
 
     def find_path(self, start, target, alt=10, h=h3, DRAW=False, USE_CACHE=True):
         num = abs(hash((start, target, alt, self.diffuse_params)))
-        cache_path = "cache/" + self.venue_name + '/' + str(num) + '.csv'
+        cache_path = PATH_PREFIX + "cache/" + self.venue_name + '/' + str(num) + '.csv'
         if USE_CACHE:
             r = check_cached_path(cache_path)
             if r is not None:
@@ -380,7 +382,7 @@ def get_test_paths(venue, DRAW=False, USE_CACHE=True):
         print("Invalid venue name: %s", venue)
         exit(1)
 
-    map_image_path = "venues/" + venue + "/" + venue + ".png"
+    map_image_path = PATH_PREFIX + "venues/" + venue + "/" + venue + ".png"
     a = A_star(venue, map_image_path)
     if len(TEST_PARAMS[venue]["start"]) == 0 or len(TEST_PARAMS[venue]["target"]) == 0:
         a.grid.find_endpoints(50, 255)
