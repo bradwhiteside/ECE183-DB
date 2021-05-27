@@ -133,3 +133,8 @@ dmypy.json
 Webots/*
 path_planner/cache/*
 .DS_Store
+*.png
+!Test.png
+!RoseBowl.png
+!Coachella.png
+!*Orig.png

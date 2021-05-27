@@ -11,10 +11,12 @@ import scipy.ndimage
 import cv2
 from queue import PriorityQueue
 from abc import ABC, abstractmethod
+import time
 
 
 def distance(x, y):
     return np.linalg.norm(np.array(x) - np.array(y))
+
 
 def color2cost(color, shift=6, scale=16):
     c = 0 if color == 0 else np.log2(color)
@@ -44,7 +46,7 @@ def collinearity_check(p1, p2, p3, epsilon=7):
     return abs(det) < epsilon
 
 
-def draw_path(image, path, color=(0, 255, 255, 255), fade=False):
+def draw_path(image, path, out_file=None, color=(0, 255, 255, 255), fade=False):
     length = len(path)
     if type(image) is str:
         image = cv2.imread(image, cv2.IMREAD_UNCHANGED)
@@ -54,6 +56,10 @@ def draw_path(image, path, color=(0, 255, 255, 255), fade=False):
             color = (color[0], color[1], color[2], int((i / length) * 196) + 64)
         image = cv2.line(image, (int(path[i][0]), int(path[i][1])), (int(path[i + 1][0]), int(path[i + 1][1])), color,
                          thickness)
+
+    if out_file is not None:
+        cv2.imwrite(out_file, image)
+
     return image
 
 def check_cached_path(path):
@@ -143,10 +149,11 @@ class Dijkstra(PathFinder):
 
 # Based off https://github.com/alpesis-robotics/drone-planner
 class A_star(PathFinder):
-    def __init__(self, image_name, DEBUG=False):
-        self.image = image_name
+    def __init__(self, venue_name, map_image_path, DEBUG=False):
+        self.venue_name = venue_name
+        self.map_image_path = map_image_path
         self.DEBUG = DEBUG
-        self.grid = Grid(image_name, DEBUG)
+        self.grid = Grid(map_image_path, DEBUG)
         self.branch = {}
         self.diffuse_params = 0
 
@@ -218,8 +225,21 @@ class A_star(PathFinder):
         print("Pruned Path is %d points long" % len(pruned_path))
         return pruned_path
 
-    def diffuse(self, iter, k=(9, 9), transparent_cost=196):
-        self.diffuse_params = (iter, k[0], k[1], transparent_cost)
+    def diffuse(self, iter, k=(9, 9), transparent_cost=196, USE_CACHE=True):
+        if iter == 0:
+            self.diffuse_params = (0, 0, 0, 0)
+        else:
+            self.diffuse_params = (iter, k[0], k[1], transparent_cost)
+        num = abs(hash(self.diffuse_params))
+        diffused_image_path = self.map_image_path[:-4] + "Diffused" + str(num) + ".png"
+        try:
+            diffused = cv2.imread(diffused_image_path, cv2.IMREAD_UNCHANGED)
+            if diffused is not None and USE_CACHE:
+                self.grid.grid = diffused
+                return diffused
+        except (FileNotFoundError, IOError):
+            pass
+
         diffused = self.grid.grid.copy()
         max_i = self.grid.h
         max_j = self.grid.w
@@ -244,15 +264,24 @@ class A_star(PathFinder):
                 if self.grid.grid[i][j][3] == 0:
                     diffused[i][j] = np.array([0, 0, 0, 0])
 
+        cv2.imwrite(diffused_image_path, diffused)
+        self.grid.grid = diffused
         return diffused
 
-    def find_path(self, start, target, alt=10, h=h3):
+    def find_path(self, start, target, alt=10, h=h3, DRAW=False, USE_CACHE=True):
         num = abs(hash((start, target, alt, self.diffuse_params)))
-        venue_name = self.image.split('/')[-1][:-4]
-        cache_path = "cache/" + venue_name + '/' + str(num) + '.csv'
-        r = check_cached_path(cache_path)
-        if r is not None:
-            return r
+        cache_path = "cache/" + self.venue_name + '/' + str(num) + '.csv'
+        if USE_CACHE:
+            r = check_cached_path(cache_path)
+            if r is not None:
+                print("returning cached path for start: {} target: {} alt: {} diffuse_params: {}"
+                      .format(start, target, alt, self.diffuse_params))
+                if DRAW:
+                    name_base = self.map_image_path[:-4]
+                    draw_path(self.map_image_path, r, out_file=name_base + "Path" + str(num) + ".png")
+                    draw_path(name_base + "Orig.png", r, out_file=name_base + "OrigPath" + str(num) + ".png")
+                    draw_path(self.grid.grid.copy(), r, out_file=name_base + "DiffusedPath" + str(num) + ".png")
+                return r
 
         start = self.grid.get_cell(start[0], start[1], alt)
         target = self.grid.get_cell(target[0], target[1], alt)
@@ -308,38 +337,69 @@ class A_star(PathFinder):
         path_cost.append(0)
 
         pruned_path = self.prune_path(path[::-1], path_cost[::-1])
-        if self.DEBUG:
-            path_image = draw_path(self.image, pruned_path)
-            path_image_name = self.image[:-4] + "Path.png"
-            cv2.imwrite(path_image_name, path_image)
 
         with open(cache_path, 'w') as out:
             np.savetxt(out, pruned_path, delimiter=' ', fmt='%d')
+
+        if DRAW:
+            name_base = self.map_image_path[:-4]
+            draw_path(self.map_image_path, pruned_path, out_file=name_base + "Path" + str(num) + ".png")
+            draw_path(name_base + "Orig.png", pruned_path, out_file=name_base + "OrigPath" + str(num) + ".png")
+            draw_path(self.grid.grid.copy(), pruned_path, out_file=name_base + "DiffusedPath" + str(num) + ".png")
+
         return pruned_path
 
+TEST_PARAMS = {
+    "Test": {
+        "diffuse_params": [12, (15, 15), 196],
+        "start": [(19, 24)],
+        "target": [(211, 20)],
+    },
+
+    "RoseBowl": {
+        "diffuse_params": [12, (25, 25), 196],
+        "start": [(128, 296), (1263, 530), (46, 950), (1198, 1062)],
+        "target": [(682, 310), (934, 676), (352, 684), (534, 1112)],
+    },
+
+    "Coachella": {
+        "diffuse_params": [5, (7, 7), 196],
+        "start": [(1447, 546), (1515, 547), (1568, 780), (1414, 855), (1413, 908), (1411, 957)],
+        "target": [(263, 356), (1086, 701), (201, 790), (186, 1359), (666, 1391)],
+    }
+}
+
+def get_test_paths(venue, DEBUG=False, DRAW=False, USE_CACHE=True):
+    global TEST_PARAMS
+    if venue not in TEST_PARAMS:
+        print("Invalid venue name: %s", venue)
+
+    map_image_path = "venues/" + venue + "/" + venue + ".png"
+    a = A_star(venue, map_image_path, DEBUG=DEBUG)
+    if len(TEST_PARAMS[venue]["start"]) == 0 or len(TEST_PARAMS[venue]["target"]) == 0:
+        a.grid.find_endpoints(50, 255)
+        exit(0)
+
+    a.diffuse(*TEST_PARAMS[venue]["diffuse_params"], USE_CACHE=False)
+    start_pts = TEST_PARAMS[venue]["start"]
+    target_pts = TEST_PARAMS[venue]["target"]
+    paths = {}
+
+    for s in start_pts:
+        for t in target_pts:
+            start_time = time.time()
+            path = a.find_path(s, t, DRAW=DRAW, USE_CACHE=USE_CACHE)
+            end_time = time.time()
+            paths[(s, t)] = path
+            if DEBUG:
+                print("Path Planner took ", end_time - start_time, "seconds to run")
+                endpts_string = '(' + str(s[0]) + ", " + str(s[1]) + ') --> (' + str(t[0]) + ", " + str(t[1]) + ')'
+                print(endpts_string + ": {} pts long".format(len(path)))
+                print(end_time - start_time, " seconds")
+
+    return paths
 
 if __name__ == '__main__':
-    venue = "Test"
-
-    map_image_name = "venues/" + venue + "/" + venue + ".png"
-    a = A_star(map_image_name, True)
-    # a.grid.find_endpoints(127, 255); exit(0)
-
-    diffused = a.diffuse(12, (15, 15), 196)  # Test
-    # diffused = a.diffuse(12, (25, 25), 196)  # Rose Bowl
-    # diffused = a.diffuse(12, (15, 15), 196)  # Coachella
-    cv2.imwrite(map_image_name[:-4] + "Diffused.png", diffused)
-    a.grid.grid = diffused
-
-    start = (19, 24); target = (211, 20)  # Test
-    # start = (46, 950); target = (682, 310)  # RoseBowl
-    # start = (19, 24); target = (211, 20)  # Coachella
-    path = a.find_path(start, target)
-    path_image = draw_path(map_image_name, path)
-    diffused_path_image = draw_path(diffused, path)
-    orig_path_image = draw_path(map_image_name[:-4] + "Orig.png", path)
-    cv2.imwrite(map_image_name[:-4] + "DiffusedPath.png", diffused_path_image)
-    cv2.imwrite(map_image_name[:-4] + "OrigPath.png", orig_path_image)
-    # cv2.imshow("Path", diffused_path_image)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
+    paths = get_test_paths("Test", DEBUG=True, DRAW=True, USE_CACHE=True)
+    paths = get_test_paths("RoseBowl", DEBUG=True, DRAW=True, USE_CACHE=True)
+    paths = get_test_paths("Coachella", DEBUG=True, DRAW=True, USE_CACHE=True)
