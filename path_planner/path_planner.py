@@ -11,8 +11,12 @@ import scipy.ndimage
 import cv2
 from queue import PriorityQueue
 from abc import ABC, abstractmethod
-import time
 
+DEBUG = False
+
+def debug(*msg):
+    if DEBUG:
+        print(*msg)
 
 def distance(x, y):
     return np.linalg.norm(np.array(x) - np.array(y))
@@ -150,10 +154,9 @@ class Dijkstra(PathFinder):
 
 # Based off https://github.com/alpesis-robotics/drone-planner
 class A_star(PathFinder):
-    def __init__(self, venue_name, map_image_path, DEBUG=False):
+    def __init__(self, venue_name, map_image_path):
         self.venue_name = venue_name
         self.map_image_path = map_image_path
-        self.DEBUG = DEBUG
         self.grid = Grid(map_image_path, DEBUG)
         self.branch = {}
         self.diffuse_params = 0
@@ -233,13 +236,13 @@ class A_star(PathFinder):
             self.diffuse_params = (iter, k[0], k[1], transparent_cost)
         num = abs(hash(self.diffuse_params))
         diffused_image_path = self.map_image_path[:-4] + "Diffused" + str(num) + ".png"
-        try:
-            diffused = cv2.imread(diffused_image_path, cv2.IMREAD_UNCHANGED)
-            if diffused is not None and USE_CACHE:
-                self.grid.grid = diffused
-                return diffused
-        except (FileNotFoundError, IOError):
-            pass
+        debug("Looking for: ", diffused_image_path)
+        diffused = cv2.imread(diffused_image_path, cv2.IMREAD_UNCHANGED)
+        if diffused is not None and USE_CACHE:
+            self.grid.grid = diffused
+            debug("Found ", diffused_image_path)
+            return diffused
+        debug(diffused_image_path, "not found")
 
         diffused = self.grid.grid.copy()
         max_i = self.grid.h
@@ -275,15 +278,16 @@ class A_star(PathFinder):
         if USE_CACHE:
             r = check_cached_path(cache_path)
             if r is not None:
-                print("returning cached path for start: {} target: {} alt: {} diffuse_params: {}"
-                      .format(start, target, alt, self.diffuse_params))
+                debug("Returning cached path for venue: {} start: {} target: {} alt: {} diffuse_params: {}"
+                          .format(self.venue_name, start, target, alt, self.diffuse_params))
                 if DRAW:
                     name_base = self.map_image_path[:-4]
                     draw_path(self.map_image_path, r, out_file=name_base + "Path" + str(num) + ".png")
                     draw_path(name_base + "Orig.png", r, out_file=name_base + "OrigPath" + str(num) + ".png")
                     draw_path(self.grid.grid.copy(), r, out_file=name_base + "DiffusedPath" + str(num) + ".png")
                 return r
-
+        debug("No cache file for venue:{} hash: {} start: {} target: {} alt: {} diffuse_params: {}"
+                  .format(self.venue_name, str(num), start, target, alt, self.diffuse_params))
         start = self.grid.get_cell(start[0], start[1], alt)
         target = self.grid.get_cell(target[0], target[1], alt)
         queue = PriorityQueue()
@@ -370,37 +374,35 @@ TEST_PARAMS = {
     }
 }
 
-def get_test_paths(venue, DEBUG=False, DRAW=False, USE_CACHE=True):
+def get_test_paths(venue, DRAW=False, USE_CACHE=True):
     global TEST_PARAMS
     if venue not in TEST_PARAMS:
         print("Invalid venue name: %s", venue)
+        exit(1)
 
     map_image_path = "venues/" + venue + "/" + venue + ".png"
-    a = A_star(venue, map_image_path, DEBUG=DEBUG)
+    a = A_star(venue, map_image_path)
     if len(TEST_PARAMS[venue]["start"]) == 0 or len(TEST_PARAMS[venue]["target"]) == 0:
         a.grid.find_endpoints(50, 255)
         exit(0)
 
-    a.diffuse(*TEST_PARAMS[venue]["diffuse_params"], USE_CACHE=False)
+    a.diffuse(*TEST_PARAMS[venue]["diffuse_params"], USE_CACHE=USE_CACHE)
     start_pts = TEST_PARAMS[venue]["start"]
     target_pts = TEST_PARAMS[venue]["target"]
     paths = {}
 
     for s in start_pts:
         for t in target_pts:
-            start_time = time.time()
+            endpts_string = '(' + str(s[0]) + ", " + str(s[1]) + ') --> (' + str(t[0]) + ", " + str(t[1]) + ')'
+            debug(venue + ": Finding path for ", endpts_string)
             path = a.find_path(s, t, DRAW=DRAW, USE_CACHE=USE_CACHE)
-            end_time = time.time()
             paths[(s, t)] = path
-            if DEBUG:
-                print("Path Planner took ", end_time - start_time, "seconds to run")
-                endpts_string = '(' + str(s[0]) + ", " + str(s[1]) + ') --> (' + str(t[0]) + ", " + str(t[1]) + ')'
-                print(endpts_string + ": {} pts long".format(len(path)))
-                print(end_time - start_time, " seconds")
+            debug(venue + ": Found path for " + venue + ": " + endpts_string + ": {} pts long".format(len(path)))
 
     return paths
 
 if __name__ == '__main__':
-    paths = get_test_paths("Test", DEBUG=True, DRAW=True, USE_CACHE=True)
-    paths = get_test_paths("RoseBowl", DEBUG=True, DRAW=True, USE_CACHE=True)
-    paths = get_test_paths("Coachella", DEBUG=True, DRAW=True, USE_CACHE=True)
+    DEBUG = False
+    paths = get_test_paths("Test", DRAW=True, USE_CACHE=True)
+    paths = get_test_paths("RoseBowl", DRAW=True, USE_CACHE=True)
+    paths = get_test_paths("Coachella", DRAW=True, USE_CACHE=True)
