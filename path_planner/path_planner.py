@@ -71,7 +71,7 @@ def check_cached_path(path):
         with open(path) as f:
             return np.genfromtxt(path, delimiter=' ', dtype=int)
     except (FileNotFoundError, IOError):
-        print("No cached file: " + path)
+        debug("No cached file: " + path)
         return None
 
 
