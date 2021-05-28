@@ -1,4 +1,4 @@
-import quadcopter,gui, controller, estimator 
+import quadcopter,gui, controller, estimator , Plotter
 from path_planner.path_planner import get_test_paths
 import signal
 import sys
@@ -17,6 +17,7 @@ QUAD_DYNAMICS_UPDATE = 0.002 # seconds
 CONTROLLER_DYNAMICS_UPDATE = 0.005 # seconds
 ESTIMATION_TIME_UPDATE = 0.005
 ESTIMATION_OBSERVATION_UPDATE = 0.1
+PLOTTER_UPDATE = 1.0
 run = True
 
 def Single_Point2Point(GOALS, goal_time_limit, tolorance):
@@ -54,12 +55,14 @@ def Single_Point2Point(GOALS, goal_time_limit, tolorance):
     quad = quadcopter.Quadcopter(QUADCOPTER)
     est = estimator.EKF(quad.get_time, quad.get_position,quad.get_linear_rate, quad.get_linear_accelertaions, quad.get_IMU_accelertaions, quad.get_orientation, quad.get_Gyro, quad.get_state, quad.get_motor_speeds,quad.get_covariances, quad.get_GPS, params=CONTROLLER_PARAMETERS, quads=QUADCOPTER, quad_identifier='q1')
     ctrl = controller.Controller_PID_Point2Point(quad.get_state,quad.get_time,quad.set_motor_speeds,est.get_estimated_state, quad.get_L, params=CONTROLLER_PARAMETERS,quad_identifier='q1')
+    plotter_obj = Plotter.plotter(quad.get_time)
     # gui_object = gui.GUI(quads=QUADCOPTER)
 
     # Start the threads
     quad.start_thread(dt=QUAD_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)
     ctrl.start_thread(update_rate=CONTROLLER_DYNAMICS_UPDATE,time_scaling=TIME_SCALING)
     est.start_thread(time_update_rate=ESTIMATION_TIME_UPDATE, observation_update_rate = ESTIMATION_OBSERVATION_UPDATE ,time_scaling=TIME_SCALING)
+    # plotter_obj.start_thread(update_rate=PLOTTER_UPDATE, time_scaling=TIME_SCALING)
     
     # Update the GUI while switching between destination poitions
     # output_file_name = "outputs/" + map.split('/')[2] + "_path_data.csv"
@@ -117,11 +120,10 @@ def Single_Point2Point(GOALS, goal_time_limit, tolorance):
         plot_results(times, true_states, est_states, torques, speeds, accels, input_goal, yaw_goal, plt_pause = True, plt_show =False)
 
 
-
-
     quad.stop_thread()
     ctrl.stop_thread()
     est.stop_thread()
+    # plotter_obj.stop_thread()
 
     error = true_states - est_states
 
@@ -229,7 +231,7 @@ if __name__ == "__main__":
     goal_time_limit = 2  #Amount of time limit to spend on a Goal            
     tolorance = 3                   #Steady state error
 
-    error = Single_Point2Point(GOALS = GOALS, goal_time_limit = goal_time_limit, tolorance =tolorance )
+    error = Single_Point2Point(GOALS = GOALS, goal_time_limit = goal_time_limit, tolorance =tolorance)
     # print("error shape is:", error.shape[0])
 
     # for i in range(0,number_of_trials-1):
