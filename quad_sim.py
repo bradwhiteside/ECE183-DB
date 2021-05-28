@@ -8,10 +8,11 @@ import matplotlib.pyplot as plt
 import controller
 import estimator
 import gui
+import cv2
 import pycontroller
 import quadcopter
 from Plot_results import plot_results, init_plot
-from path_planner.path_planner import get_test_paths
+from path_planner.path_planner import get_test_paths, draw_path
 
 # Constants
 TIME_SCALING = 1.0  # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
@@ -23,12 +24,9 @@ PLOTTER_UPDATE = 1.0
 run = True
 
 
-def Single_Point2Point(GOALS, goal_time_limit, tolerance):
+def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_path=None):
     start = GOALS[0]
     YAWS = [0] * len(GOALS)
-
-    plt.ion()
-    fig, axes, lines = init_plot(plt_show=True)
 
     # Define the quadcopters
     QUADCOPTER = {'q1': {'position': start, 'orientation': [0, 0, 0], 'L': 0.5, 'r': 0.2, 'prop_size': [21, 9.5],
@@ -85,6 +83,12 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance):
     accels = np.empty((0, 3), float)
 
     simulation_start_time = quad.get_time()
+    plt.ion()
+    fig, axes, lines = init_plot(plt_show=plt_show)
+
+    map_image = cv2.imread(venue_path, cv2.IMREAD_UNCHANGED)
+    cv2.namedWindow('Real Time Path', cv2.WINDOW_AUTOSIZE)
+
     # Simulation
     for goal, yaw in zip(GOALS, YAWS):
         print(goal)
@@ -122,6 +126,11 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance):
 
             input_goal = np.append(input_goal, np.array([goal]), axis=0)
             yaw_goal = np.append(yaw_goal, np.array([yaw]), axis=0)
+        if map_image is not None:
+            new_image = cv2.circle(map_image.copy(), (int(est_state[0]), int(est_state[1])),
+                                   3, (255, 0, 255, 255), -1)
+            cv2.imshow('Real time path', new_image)
+            cv2.waitKey(1)
         plot_results(fig, axes, lines, times, true_states, est_states, torques, speeds, accels, input_goal, yaw_goal, plt_pause=True)
 
     quad.stop_thread()
@@ -197,7 +206,9 @@ def signal_handler(signal, frame):
 
 
 if __name__ == "__main__":
-    paths = get_test_paths(venue="Test")
+    venue_name = "Test"
+    paths = get_test_paths(venue=venue_name)
+    map_image_path = './path_planner/venues/' + venue_name + '/' + venue_name + 'DiffusedPath.png'
 
     for path_index, GOALS in paths.items():
         x = GOALS[:, 0]
@@ -220,7 +231,7 @@ if __name__ == "__main__":
         goal_time_limit = 2  # Amount of time limit to spend on a Goal
         tolerance = 1.5  # Steady state error
 
-        error = Single_Point2Point(GOALS=GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance)
+        error = Single_Point2Point(GOALS=GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance, plt_show=False, venue_path=map_image_path)
         # print("error shape is:", error.shape[0])
 
     # for i in range(0,number_of_trials-1):
