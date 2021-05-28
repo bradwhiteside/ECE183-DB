@@ -1,4 +1,5 @@
-import quadcopter,gui, pycontroller, estimator
+import quadcopter,gui, controller, estimator 
+from path_planner.path_planner import get_test_paths
 import signal
 import sys
 import datetime
@@ -7,47 +8,51 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 from scipy.stats import norm
+from scipy import interpolate
 
 # Constants
 TIME_SCALING = 1.0 # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
 QUAD_DYNAMICS_UPDATE = 0.001 # seconds
-CONTROLLER_DYNAMICS_UPDATE = 0.005 # seconds
-ESTIMATION_TIME_UPDATE = 0.005
-ESTIMATION_OBSERVATION_UPDATE = 0.1
+CONTROLLER_DYNAMICS_UPDATE = 0.002 # seconds
+ESTIMATION_TIME_UPDATE = 0.002
+ESTIMATION_OBSERVATION_UPDATE = 0.8
 run = True
 
-def Single_Point2Point():
-    #Ramp input
-    x_ramp = np.linspace(0,10,10)
-    # x_ramp = np.hstack((x_ramp,np.linspace(10,0,10)))
-    y_ramp = np.linspace(0,20,10)
-    # y_ramp = np.hstack((y_ramp,np.linspace(20,0,10)))
-    z_ramp = np.linspace(5,20,10)
-    GOALS = np.vstack((x_ramp,y_ramp,z_ramp)).T 
-    YAWS = np.hstack((np.linspace(0, np.pi/4,10)))#, np.linspace(0, 0, 10)))
-    # YAWS = [0,0,0, np.pi/4,np.pi/4, np.pi/2,np.pi/2, 0.7 * np.pi, 0.7 *np.pi, 0.7 * np.pi, 0,0,0,0,0]
+def Single_Point2Point(GOALS):
     start = GOALS[0]
+
+    YAWS = [0] * len(GOALS)
 
     # Define the quadcopters
     QUADCOPTER={'q1':{'position': start,'orientation':[0,0,0],'L':0.5,'r':0.2,'prop_size':[21,9.5],'weight':7}} #w in kg, L and r in mm, prop_size in in
 
-    #CONTROLLER_PARAMETERS _if using estimator
+    # Controller parameters Without estimator
     CONTROLLER_PARAMETERS = {'Motor_limits':[1000, 45000],
-                        'Tilt_limits':[-5, 5],   #degrees
-                        'Z_XY_offset':500,
-                        'Linear_PID':{'P':[1160000,1100000,30000],'I':[20,20,30],'D':[940000,940000,50000]},
-                        'Linear_To_Angular_Scaler':[1,1,0],
+                        'Tilt_limits':[-2, 2],   #degrees
                         'Yaw_Control_Limits':[-900,900],
+                        'Z_XY_offset':500,
+                        'Linear_PID':{'P':[500000,550000,72000],'I':[30,30,60],'D':[900000,1200000,80000]},
+                        'Linear_To_Angular_Scaler':[1,1,0],
                         'Yaw_Rate_Scaler':1.1,
-                        'Angular_PID':{'P':[8000,8000,3000],'I':[0,0,0],'D':[2000,2000,1500]},
+                        'Angular_PID':{'P':[7000,6500,3000],'I':[0,0,0],'D':[2000,2000,1200]},
                         }
+    #CONTROLLER_PARAMETERS _if using estimator
+    # CONTROLLER_PARAMETERS = {'Motor_limits':[1000, 45000],
+    #                     'Tilt_limits':[-5, 5],   #degrees
+    #                     'Z_XY_offset':500,
+    #                     'Linear_PID':{'P':[1160000,1100000,30000],'I':[30,30,30],'D':[1500000,1500000,50000]},
+    #                     'Linear_To_Angular_Scaler':[1,1,0],
+    #                     'Yaw_Control_Limits':[-900,900],
+    #                     'Yaw_Rate_Scaler':1.1,
+    #                     'Angular_PID':{'P':[8000,8000,3000],'I':[0,0,0],'D':[2100,2100,1500]},
+    #                     }
 
     # Catch Ctrl+C to stop threads
     signal.signal(signal.SIGINT, signal_handler)
     # Make objects for quadcopter, gui and controller
     quad = quadcopter.Quadcopter(QUADCOPTER)
     est = estimator.EKF(quad.get_time, quad.get_position,quad.get_linear_rate, quad.get_linear_accelertaions, quad.get_IMU_accelertaions, quad.get_orientation, quad.get_Gyro, quad.get_state, quad.get_motor_speeds,quad.get_covariances, quad.get_GPS, params=CONTROLLER_PARAMETERS, quads=QUADCOPTER, quad_identifier='q1')
-    ctrl = pycontroller.Controller_PID_Point2Point(quad.get_state,quad.get_time,quad.set_motor_speeds,est.get_estimated_state, quad.get_L, params=CONTROLLER_PARAMETERS,quad_identifier='q1')
+    ctrl = controller.Controller_PID_Point2Point(quad.get_state,quad.get_time,quad.set_motor_speeds,est.get_estimated_state, quad.get_L, params=CONTROLLER_PARAMETERS,quad_identifier='q1')
     # gui_object = gui.GUI(quads=QUADCOPTER)
 
     # Start the threads
@@ -70,8 +75,8 @@ def Single_Point2Point():
 
     simulation_start_time = quad.get_time()
     #Simulation
-    time_limit = 3 * TIME_SCALING  #Amount of time limit to spend on a Goal            
-    tolorance = 0.8                    #Steady state error
+    time_limit = 4 * TIME_SCALING  #Amount of time limit to spend on a Goal            
+    tolorance = 1.2                    #Steady state error
 
     for goal,yaw in zip(GOALS,YAWS):
         print(goal)
@@ -84,7 +89,7 @@ def Single_Point2Point():
         dist = np.linalg.norm(est_state - goal)
         
 
-        while dist > tolorance: #time_laps < time_limit:# 
+        while time_laps < time_limit: # dist > tolorance:
             # print("dist",dist)
             # print(t)
             # gui_object.quads['q1']['position'] = quad.get_position('q1')
@@ -358,36 +363,80 @@ def signal_handler(signal, frame):
 
 if __name__ == "__main__":
 
+    startx =19 
+    starty =  24
+    endx  = 211
+    endy = 20
+    paths = get_test_paths(venue = "Test")
+    path1 = paths[((startx, starty), (endx, endy))]
+    print("path shape is:", path1.shape)
+
+    
+    x = path1[:,0]
+    y = path1[:,1]
+    z = path1[:,2]
+    input_range = np.arange(0,len(x))
+    f_x = interpolate.interp1d(input_range, x)
+    f_y = interpolate.interp1d(input_range, y)
+    f_z = interpolate.interp1d(input_range, z)
+
+    data_points = 500
+    new_range = np.linspace(0,len(input_range)-1, data_points)
+    x_new = f_x(new_range)
+    y_new = f_y(new_range)
+    z_new = f_z(new_range)
+    GOALS = np.vstack((x_new,y_new,z_new)).T 
+    print("New Goal shape is:",GOALS.shape)
+
+
+    #Ramp input
+    # x_ramp = np.linspace(0,10,10)
+    # # x_ramp = np.hstack((x_ramp,np.linspace(10,0,10)))
+    # y_ramp = np.linspace(0,20,10)
+    # # y_ramp = np.hstack((y_ramp,np.linspace(20,0,10)))
+    # z_ramp = np.linspace(5,5,10)
+    # GOALS = np.vstack((x_ramp,y_ramp,z_ramp)).T 
+    # YAWS = np.hstack((np.linspace(0, np.pi/4,10)))#, np.linspace(0, 0, 10)))
+    # YAWS = [0,0,0, np.pi/4,np.pi/4, np.pi/2,np.pi/2, 0.7 * np.pi, 0.7 *np.pi, 0.7 * np.pi, 0,0,0,0,0]
+
+
+    
+
+
+    #for idx in paths:
+        #paths[idx]
+
+
     number_of_trials = 1
-    error = Single_Point2Point()
-    print("error shape is:", error.shape[0])
+    error = Single_Point2Point(GOALS = GOALS)
+    # print("error shape is:", error.shape[0])
 
-    for i in range(0,number_of_trials-1):
-        print("Trial", i)
-        new_error = Single_Point2Point()
-        error_len = error.shape[0]
-        new_error_leng = new_error.shape[0]
-        diff = np.abs(new_error_leng - error_len)
+    # for i in range(0,number_of_trials-1):
+    #     print("Trial", i)
+    #     new_error = Single_Point2Point()
+    #     error_len = error.shape[0]
+    #     new_error_leng = new_error.shape[0]
+    #     diff = np.abs(new_error_leng - error_len)
         
-        if new_error_leng > error_len :
-            # new_error = new_error[:-diff]
-            # error += new_error #np.concatenate((error, new_error))
-            np.concatenate((error, new_error))
-            print('new_error shranked by {} elements'.format(diff))
+    #     if new_error_leng > error_len :
+    #         # new_error = new_error[:-diff]
+    #         # error += new_error #np.concatenate((error, new_error))
+    #         np.concatenate((error, new_error))
+    #         print('new_error shranked by {} elements'.format(diff))
 
-        elif error_len > new_error_leng :
-            # error = error[:-diff]
-            # error += new_error
-            np.concatenate((error, new_error))
-            print('error shranked by {} elements'.format(diff))
+    #     elif error_len > new_error_leng :
+    #         # error = error[:-diff]
+    #         # error += new_error
+    #         np.concatenate((error, new_error))
+    #         print('error shranked by {} elements'.format(diff))
 
 
-        # print("Error length is:",new_error_leng)
-        # error = np.concatenate((error, Single_Point2Point()))
+    #     # print("Error length is:",new_error_leng)
+    #     # error = np.concatenate((error, Single_Point2Point()))
 
-    #error = error/number_of_trials
-    print(error.shape)
-    np.savetxt('error_analysis/errors.txt', error)
+    # #error = error/number_of_trials
+    # print(error.shape)
+    # np.savetxt('error_analysis/errors.txt', error)
 
 
     # args = parse_args()
