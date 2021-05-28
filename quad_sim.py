@@ -13,10 +13,10 @@ from Plot_results import plot_results
 
 # Constants
 TIME_SCALING = 1.0 # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
-QUAD_DYNAMICS_UPDATE = 0.001 # seconds
-CONTROLLER_DYNAMICS_UPDATE = 0.002 # seconds
-ESTIMATION_TIME_UPDATE = 0.002
-ESTIMATION_OBSERVATION_UPDATE = 0.8
+QUAD_DYNAMICS_UPDATE = 0.002 # seconds
+CONTROLLER_DYNAMICS_UPDATE = 0.005 # seconds
+ESTIMATION_TIME_UPDATE = 0.005
+ESTIMATION_OBSERVATION_UPDATE = 0.1
 run = True
 
 def Single_Point2Point(GOALS, goal_time_limit, tolorance):
@@ -32,10 +32,10 @@ def Single_Point2Point(GOALS, goal_time_limit, tolorance):
                         'Tilt_limits':[-2, 2],   #degrees
                         'Yaw_Control_Limits':[-900,900],
                         'Z_XY_offset':500,
-                        'Linear_PID':{'P':[500000,550000,72000],'I':[30,30,60],'D':[900000,1200000,80000]},
+                        'Linear_PID':{'P':[500000,550000,72000],'I':[30,30,60],'D':[1500000,1200000,80000]},
                         'Linear_To_Angular_Scaler':[1,1,0],
                         'Yaw_Rate_Scaler':1.1,
-                        'Angular_PID':{'P':[7000,6500,3000],'I':[0,0,0],'D':[2000,2000,1200]},
+                        'Angular_PID':{'P':[7000,6500,3000],'I':[0,0,0],'D':[3000,3000,1200]},
                         }
     #CONTROLLER_PARAMETERS _if using estimator
     # CONTROLLER_PARAMETERS = {'Motor_limits':[1000, 45000],
@@ -87,7 +87,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolorance):
         dist = np.linalg.norm(est_state - goal)
         
 
-        while time_laps < goal_time_limit: # dist > tolorance:
+        while  dist > tolorance or time_laps < goal_time_limit: #
             # print("dist",dist)
             # print(t)
             # gui_object.quads['q1']['position'] = quad.get_position('q1')
@@ -202,7 +202,7 @@ if __name__ == "__main__":
     f_y = interpolate.interp1d(input_range, y)
     f_z = interpolate.interp1d(input_range, z)
 
-    data_points = 500
+    data_points = 400
     new_range = np.linspace(0,len(input_range)-1, data_points)
     x_new = f_x(new_range)
     y_new = f_y(new_range)
@@ -212,23 +212,22 @@ if __name__ == "__main__":
 
 
     #Ramp input
-    x_ramp = np.linspace(0,10,10)
+    # x_ramp = np.linspace(0,10,10)
     # x_ramp = np.hstack((x_ramp,np.linspace(10,0,10)))
-    y_ramp = np.linspace(0,20,10)
-    # y_ramp = np.hstack((y_ramp,np.linspace(20,0,10)))
-    z_ramp = np.linspace(5,5,10)
-    GOALS = np.vstack((x_ramp,y_ramp,z_ramp)).T 
-    YAWS = np.hstack((np.linspace(0, np.pi/4,10)))#, np.linspace(0, 0, 10)))
-    YAWS = [0,0,0, np.pi/4,np.pi/4, np.pi/2,np.pi/2, 0.7 * np.pi, 0.7 *np.pi, 0.7 * np.pi, 0,0,0,0,0]
+    # y_ramp = np.linspace(0,20,20)
+    # # y_ramp = np.hstack((y_ramp,np.linspace(20,0,10)))
+    # z_ramp = np.linspace(5,5,20)
+    # GOALS = np.vstack((x_ramp,y_ramp,z_ramp)).T 
+    # YAWS = np.hstack((np.linspace(0, np.pi/4,10)))#, np.linspace(0, 0, 10)))
+    # YAWS = [0,0,0, np.pi/4,np.pi/4, np.pi/2,np.pi/2, 0.7 * np.pi, 0.7 *np.pi, 0.7 * np.pi, 0,0,0,0,0]
 
 
     #for idx in paths:
         #paths[idx]
 
-
     number_of_trials = 1
     goal_time_limit = 2  #Amount of time limit to spend on a Goal            
-    tolorance = 1.2                    #Steady state error
+    tolorance = 3                   #Steady state error
 
     error = Single_Point2Point(GOALS = GOALS, goal_time_limit = goal_time_limit, tolorance =tolorance )
     # print("error shape is:", error.shape[0])
