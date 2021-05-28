@@ -71,14 +71,13 @@ def plot_results(figure, axes, lines, times, true_states, est_states, torques, s
     if figure is None or axes is None or lines is None:
         return
 
-    WINDOW_WIDTH = 0 if len(true_states[:, 0]) < 1000 else -1000
+    WINDOW_WIDTH = 0 if len(true_states[:, 0]) < 10000 else -10000
     i = 0
 
     # axes[0, 0].plot(times, est_states[:,0], label = "x dir_est", color = "green")
     # axes[0, 0].plot(times[WINDOW_WIDTH:], input_goal[WINDOW_WIDTH:, 0], label="x goal")
     # axes[0, 0].plot(times[WINDOW_WIDTH:], true_states[WINDOW_WIDTH:, 0], label="x dir")
-    lines[i].set_xdata(times[WINDOW_WIDTH:])
-    lines[i].set_ydata(input_goal[WINDOW_WIDTH:, 0])
+    lines[i].set_data(times[WINDOW_WIDTH:], input_goal[WINDOW_WIDTH:, 0])
     i += 1
     lines[i].set_data(times[WINDOW_WIDTH:], true_states[WINDOW_WIDTH:, 0])
     i += 1
@@ -121,6 +120,10 @@ def plot_results(figure, axes, lines, times, true_states, est_states, torques, s
       #  plt.pause(0.000000000000001)
 
     try:
+        for i in range(axes.shape[0]):
+            for j in range(axes.shape[1]):
+                axes[i][j].relim()
+                axes[i][j].autoscale_view()
         figure.canvas.draw()
         figure.canvas.flush_events()
     except (_tkinter.TclError):
