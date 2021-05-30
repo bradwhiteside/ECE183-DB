@@ -1,5 +1,6 @@
+import threading
 import yaml
-
+from copy import deepcopy
 PATH_PREFIX = './'
 if __name__ == '__main__':
     from graph import Graph, Node
@@ -208,6 +209,7 @@ class A_star(PathFinder):
         length = len(path)
         debug("Path is %d points long" % length)
         pruned_path = np.array(path).reshape((length, 3))
+        pruned_path = pruned_path[::2]
 
         # From https://stackoverflow.com/questions/20618804/how-to-smooth-a-curve-in-the-right-way
         box_pts = 12
@@ -224,7 +226,7 @@ class A_star(PathFinder):
             p1 = pruned_path[i]
             p2 = pruned_path[i+1]
             p3 = pruned_path[i+2]
-            if collinearity_check(p1, p2, p3):
+            if distance(p1, p2) <= 8 and collinearity_check(p1, p2, p3):
                 pruned_path = np.delete(pruned_path, i + 1, axis=0)
             else:
                 i += 1
@@ -274,7 +276,7 @@ class A_star(PathFinder):
         self.grid.grid = diffused
         return diffused
 
-    def find_path(self, start, target, alt=10, h=h3, DRAW=False, USE_CACHE=True):
+    def find_path(self, start, target, alt=10, h=h3, DRAW=True, USE_CACHE=True):
         num = abs(hash((start, target, alt, self.diffuse_params)))
         cache_path = PATH_PREFIX + "cache/" + self.venue_name + '/' + str(num) + '.csv'
         if USE_CACHE:
@@ -376,6 +378,24 @@ TEST_PARAMS = {
     }
 }
 
+class path_finder_thread_spawner:
+    def __init__(self, A, paths):
+        self.A = A
+        self.paths = paths
+        self.threads = []
+
+    def start_thread(self, s, t):
+        t = threading.Thread(target=self.thread_run, args=(s, t))
+        self.threads.append(t)
+        t.start()
+
+    def thread_run(self, s, t):
+        self.paths[(s, t)] = self.A.find_path(s, t, USE_CACHE=False)
+
+    def join_all_threads(self):
+        for t in self.threads:
+            t.join()
+
 def get_test_paths(venue, DRAW=False, USE_CACHE=True):
     global TEST_PARAMS
     if venue not in TEST_PARAMS:
@@ -397,9 +417,12 @@ def get_test_paths(venue, DRAW=False, USE_CACHE=True):
         for t in target_pts:
             endpts_string = '(' + str(s[0]) + ", " + str(s[1]) + ') --> (' + str(t[0]) + ", " + str(t[1]) + ')'
             debug(venue + ": Finding path for ", endpts_string)
-            path = a.find_path(s, t, DRAW=DRAW, USE_CACHE=USE_CACHE)
-            paths[(s, t)] = path
-            debug(venue + ": Found path for " + venue + ": " + endpts_string + ": {} pts long".format(len(path)))
+            P = path_finder_thread_spawner(deepcopy(a), paths)
+            P.start_thread(s, t)
+            # path = a.find_path(s, t, DRAW=DRAW, USE_CACHE=USE_CACHE)
+            # paths[(s, t)] = path
+            # debug(venue + ": Found path for " + venue + ": " + endpts_string + ": {} pts long".format(len(path)))
+    P.join_all_threads()
 
     return paths
 
