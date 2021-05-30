@@ -12,7 +12,7 @@ class Controller_PID_Point2Point():
         self.MOTOR_LIMITS = params['Motor_limits']
         self.TILT_LIMITS = [(params['Tilt_limits'][0]/180.0)*3.14,(params['Tilt_limits'][1]/180.0)*3.14]
         self.YAW_CONTROL_LIMITS = params['Yaw_Control_Limits']
-        self.Z_LIMITS = [self.MOTOR_LIMITS[0], 6*self.MOTOR_LIMITS[1]]
+        self.Z_LIMITS = [self.MOTOR_LIMITS[0]+params['Z_XY_offset'],self.MOTOR_LIMITS[1]-params['Z_XY_offset']]
         self.LINEAR_P = params['Linear_PID']['P']
         self.LINEAR_I = params['Linear_PID']['I']
         self.LINEAR_D = params['Linear_PID']['D']
@@ -48,10 +48,11 @@ class Controller_PID_Point2Point():
         y_error = dest_y-y
         z_error = dest_z-z
         
-        #Intergral term term (add)
-        self.xi_term += self.LINEAR_I[0]*x_error
-        self.yi_term += self.LINEAR_I[1]*y_error
-        self.zi_term += self.LINEAR_I[2]*z_error
+        #Integral term term (add)
+        decay = 0.999
+        self.xi_term = (self.xi_term * decay) + self.LINEAR_I[0] * x_error
+        self.yi_term = (self.yi_term * decay) + self.LINEAR_I[1] * y_error
+        self.zi_term = (self.zi_term * decay) + self.LINEAR_I[2] * z_error
         
         #PID(x,y,z)
         dest_x_dot = self.LINEAR_P[0]*(x_error) + self.LINEAR_D[0]*(-x_dot) + self.xi_term

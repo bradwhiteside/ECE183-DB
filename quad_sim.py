@@ -12,7 +12,7 @@ import cv2
 import pycontroller
 import quadcopter
 from Plot_results import plot_results, init_plot
-from path_planner.path_planner import get_test_paths, draw_path
+from path_planner.path_planner import get_test_paths
 
 # Constants
 TIME_SCALING = 1.0  # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
@@ -23,6 +23,8 @@ ESTIMATION_OBSERVATION_UPDATE = 0.1
 PLOTTER_UPDATE = 1.0
 run = True
 
+def distance(x, y):
+    return np.linalg.norm(x - y)
 
 def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_path=None):
     start = GOALS[0]
@@ -34,14 +36,17 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
 
     # Controller parameters Without estimator
     CONTROLLER_PARAMETERS = {'Motor_limits': [1000, 45000],
-                             'Tilt_limits': [-2, 2],  # degrees
+                             'Tilt_limits': [-20, 20],  # degrees
                              'Yaw_Control_Limits': [-900, 900],
                              'Z_XY_offset': 500,
-                             'Linear_PID': {'P': [500000, 550000, 72000], 'I': [30, 30, 60],
-                                            'D': [1500000, 1200000, 80000]},
+                             'Linear_PID': {'P': [120000, 120000, 10000],
+                                            'I': [0, 0, 0],
+                                            'D': [100000, 100000, 2000]},
                              'Linear_To_Angular_Scaler': [1, 1, 0],
                              'Yaw_Rate_Scaler': 1.1,
-                             'Angular_PID': {'P': [7000, 6500, 3000], 'I': [0, 0, 0], 'D': [3000, 3000, 1200]},
+                             'Angular_PID': {'P': [7000, 6500, 3000],
+                                             'I': [0, 0, 0],
+                                             'D': [3000, 3000, 1200]},
                              }
     # CONTROLLER_PARAMETERS _if using estimator
     #  'Linear_PID':{'P':[1160000,1100000,30000],'I':[30,30,30],'D':[1500000,1500000,50000]},
@@ -90,17 +95,30 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
         map_image = cv2.imread(venue_path, cv2.IMREAD_UNCHANGED)
 
     # Simulation
-    for goal, yaw in zip(GOALS, YAWS):
+    total_distance_travelled = 0
+    PATH_LENGTH = len(GOALS)
+    sim_start_time = datetime.datetime.now()
+    for i in range(PATH_LENGTH):
+        if i < PATH_LENGTH-1:
+            distance_to_go = distance(GOALS[i], GOALS[i+1])
+            total_distance_travelled += distance_to_go
+        goal = GOALS[i]
+        next_goal = GOALS[i] if i == PATH_LENGTH-1 else GOALS[i+1]
+        nextnext_goal = GOALS[i] if i == PATH_LENGTH - 1 else GOALS[i + 1]
         print(goal)
         ctrl.update_target(goal)
-        ctrl.update_yaw_target(yaw)
+        ctrl.update_yaw_target(0)
         goal_start_time = quad.get_time()
-        time_laps = 0
+        time_lapse = 0
         true_pos = np.array(quad.get_state('q1')[0:3])
         est_state = np.array(est.get_estimated_state('q1')[0:3])
-        dist = np.linalg.norm(est_state - goal)
-
-        while dist > tolerance or time_laps < goal_time_limit:
+        dist = distance(est_state, goal)
+        next_dist = distance(est_state, next_goal)
+        nextnext_dist = distance(est_state, nextnext_goal)
+        while not (dist < tolerance or
+               next_dist < 0.75*tolerance or
+               nextnext_dist < 0.5*tolerance) and not \
+               time_lapse > goal_time_limit*distance_to_go:
             # print("dist",dist)
             # print(t)
             # gui_object.quads['q1']['position'] = quad.get_position('q1')
@@ -119,19 +137,38 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
 
             time = quad.get_time()
             times = np.append(times, np.array([(time - simulation_start_time).total_seconds()]), axis=0)
-            time_laps = (datetime.datetime.now() - goal_start_time).total_seconds()
+            time_lapse = (datetime.datetime.now() - goal_start_time).total_seconds()
 
             # dist = np.linalg.norm(true_state[0:3] - goal)
-            dist = np.linalg.norm(est_state[0:3] - goal)
+            dist = distance(est_state[0:3], goal)
+            next_dist = distance(est_state[0:3], next_goal)
+            nextnext_dist = distance(est_state[0:3], nextnext_goal)
 
             input_goal = np.append(input_goal, np.array([goal]), axis=0)
-            yaw_goal = np.append(yaw_goal, np.array([yaw]), axis=0)
+            yaw_goal = np.append(yaw_goal, np.array([0]), axis=0)
             if venue_path is not None:
                 new_image = cv2.circle(map_image.copy(), (int(est_state[0]), int(est_state[1])),
                                        3, (255, 0, 255, 255), -1)
                 cv2.imshow('Real time path', new_image)
-                cv2.waitKey(1)
+                key = cv2.waitKey(1)
+                if key == ord('q'):
+                    cv2.destroyAllWindows()
+                    print("Closing window but continuing with simulation...")
+                    venue_path = None
+                elif key == 27:  # Esc key
+                    cv2.destroyAllWindows()
+                    print('Stopping simulation.')
+                    quad.stop_thread()
+                    ctrl.stop_thread()
+                    est.stop_thread()
+                    exit(1)
+
         plot_results(fig, axes, lines, times, true_states, est_states, torques, speeds, accels, input_goal, yaw_goal, plt_pause=True)
+
+    sim_end_time = datetime.datetime.now()
+    sim_total_time = (sim_end_time - sim_start_time).total_seconds()
+    print("Simulation took {}".format(sim_total_time))
+    print("Travelled a total of {} meters".format(total_distance_travelled))
 
     quad.stop_thread()
     ctrl.stop_thread()
@@ -228,8 +265,8 @@ if __name__ == "__main__":
         print("New Goal shape is:", INTERPOLATED_GOALS.shape)
 
         number_of_trials = 1
-        goal_time_limit = 2  # Amount of time limit to spend on a Goal
-        tolerance = 1.5  # Steady state error
+        goal_time_limit = 3  # Amount of time limit to spend on a Goal
+        tolerance = 2  # Steady state error
 
         error = Single_Point2Point(GOALS=GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance, plt_show=False, venue_path=map_image_path)
         # print("error shape is:", error.shape[0])
