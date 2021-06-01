@@ -45,6 +45,7 @@ class Quadcopter():
             self.quads[key]['m5'] = Propeller(self.quads[key]['prop_size'][0], self.quads[key]['prop_size'][1])
             self.quads[key]['m6'] = Propeller(self.quads[key]['prop_size'][0], self.quads[key]['prop_size'][1])
             self.linear_accelerations_inertial = [0, 0, self.g]
+            self.gravity_vect = np.array([0, 0, self.g])
 
             # Accel
             self.accl_x_std = 4e-3
@@ -224,7 +225,7 @@ class Quadcopter():
         #          + self.g * np.cos(self.quads[quad_name]['state'][7]) * np.sin(self.quads[quad_name]['state'][6]),
         #          + self.g * np.cos(self.quads[quad_name]['state'][7]) * np.cos(self.quads[quad_name]['state'][6])]
 
-        IMU_accel = R_inv @ (self.linear_accelerations_inertial - [0, 0, self.g])
+        IMU_accel = R_inv @ (self.linear_accelerations_inertial - self.gravity_vect)
         accel_std = [self.accl_x_std, self.accl_y_std, self.accl_z_std]
         return np.random.normal(IMU_accel, accel_std)
 

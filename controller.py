@@ -48,8 +48,8 @@ class Controller_PID_Point2Point():
         #Get the target pos
         [dest_x,dest_y,dest_z] = self.target
         #Get state
-        [x,y,z,x_dot,y_dot,z_dot,theta,phi,gamma,theta_dot,phi_dot,gamma_dot] = self.get_state(self.quad_identifier)
-        # [x,y,z,x_dot,y_dot,z_dot,theta,phi,gamma,theta_dot,phi_dot,gamma_dot] = self.get_estimated_state(self.quad_identifier)
+        # [x,y,z,x_dot,y_dot,z_dot,theta,phi,gamma,theta_dot,phi_dot,gamma_dot] = self.get_state(self.quad_identifier)
+        [x,y,z,x_dot,y_dot,z_dot,theta,phi,gamma,theta_dot,phi_dot,gamma_dot] = self.get_estimated_state(self.quad_identifier)
 
         #Get errors
         x_error = dest_x-x

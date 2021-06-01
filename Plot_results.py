@@ -43,81 +43,103 @@ def init_plot(plt_show):
     # axes[0,0].plot(times, est_states[:,0], label = "x dir_est", color = "green")
     lines.extend(axes[0, 0].plot(dummy_1D_values, dummy_state_values[:, 0], label="x goal"))
     lines.extend(axes[0, 0].plot(dummy_1D_values, dummy_state_values[:, 0], label="x dir"))
+    lines.extend(axes[0, 0].plot(dummy_1D_values, dummy_state_values[:, 0], label="x est"))
 
     # axes[1,0].plot(times, est_states[:,1], label = "y dir_est" , color = "green")
     lines.extend(axes[1, 0].plot(dummy_1D_values, dummy_state_values[:, 1], label="y goal"))
     lines.extend(axes[1, 0].plot(dummy_1D_values, dummy_state_values[:, 1], label="y dir"))
+    lines.extend(axes[1, 0].plot(dummy_1D_values, dummy_state_values[:, 1], label="y est"))
 
     # axes[2,0].plot(times, est_states[:,2], label = "z dir_est", color = "green")
     lines.extend(axes[2, 0].plot(dummy_1D_values, dummy_state_values[:, 2], label="z goal"))
     lines.extend(axes[2, 0].plot(dummy_1D_values, dummy_state_values[:, 2], label="z (altitude)"))
+    lines.extend(axes[2, 0].plot(dummy_1D_values, dummy_state_values[:, 2], label="z est"))
 
     # axes[0,1].plot(times, np.degrees(est_states[:,6]), label = "roll_est", color = "green")
     lines.extend(axes[0, 1].plot(dummy_1D_values, dummy_state_values[:, 6], label="roll"))
+    lines.extend(axes[0, 1].plot(dummy_1D_values, dummy_state_values[:, 6], label="roll est"))
 
     # axes[1,1].plot(times, np.degrees(est_states[:,7]), label = "pitch_est", color = "green")
     lines.extend(axes[1, 1].plot(dummy_1D_values, dummy_state_values[:, 7], label="pitch"))
+    lines.extend(axes[1, 1].plot(dummy_1D_values, dummy_state_values[:, 7], label="pitch est"))
 
     # axes[2,1].plot(times, np.degrees(est_states[:,8]), label = "yaw_est", color = "green")
     lines.extend(axes[2, 1].plot(dummy_1D_values, dummy_1D_values, label="yaw goal"))
     lines.extend(axes[2, 1].plot(dummy_1D_values, dummy_state_values[:, 8], label="yaw"))
+    lines.extend(axes[2, 1].plot(dummy_1D_values, dummy_state_values[:, 8], label="yaw est"))
 
     return fig1, axes, lines
 
 
 # Plot the path
-def plot_results(figure, axes, lines, times, true_states, est_states, torques, speeds, accels, input_goal, yaw_goal,
-                 plt_pause=False):
+def plot_results(figure, axes, lines, times, true_states, est_states, torques, speeds, accels, input_goal, yaw_goal, avg_velocity,
+                 plt_pause=False, plt_show = False):
     if figure is None or axes is None or lines is None:
         return
 
     WINDOW_WIDTH = 0 if len(true_states[:, 0]) < 10000 else -10000
     i = 0
 
+    i_1 = -100
+    i_2 = -1
+
+    times = times[i_1:i_2]
+
     # axes[0, 0].plot(times, est_states[:,0], label = "x dir_est", color = "green")
     # axes[0, 0].plot(times[WINDOW_WIDTH:], input_goal[WINDOW_WIDTH:, 0], label="x goal")
     # axes[0, 0].plot(times[WINDOW_WIDTH:], true_states[WINDOW_WIDTH:, 0], label="x dir")
-    lines[i].set_data(times[WINDOW_WIDTH:], input_goal[WINDOW_WIDTH:, 0])
+    lines[i].set_data(times, input_goal[i_1:i_2, 0])
     i += 1
-    lines[i].set_data(times[WINDOW_WIDTH:], true_states[WINDOW_WIDTH:, 0])
+    lines[i].set_data(times, true_states[i_1:i_2, 0])
     i += 1
+    lines[i].set_data(times, est_states[i_1:i_2, 0])
+    i += 1
+    # lines[i].set_text('line %d, stage %d'%(1,2))
+    # i += 1
 
     # axes[1, 0].plot(times, est_states[:,1], label = "y dir_est" , color = "green")
     # axes[1, 0].plot(times[WINDOW_WIDTH:], input_goal[WINDOW_WIDTH:, 1], label="y goal")
     # axes[1, 0].plot(times[WINDOW_WIDTH:], true_states[WINDOW_WIDTH:, 1], label="y dir")
-    lines[i].set_data(times[WINDOW_WIDTH:], input_goal[WINDOW_WIDTH:, 1])
+    lines[i].set_data(times, input_goal[i_1:i_2, 1])
     i += 1
-    lines[i].set_data(times[WINDOW_WIDTH:], true_states[WINDOW_WIDTH:, 1])
+    lines[i].set_data(times, true_states[i_1:i_2, 1])
+    i += 1
+    lines[i].set_data(times, est_states[i_1:i_2, 1])
     i += 1
 
     # axes[2, 0].plot(times, est_states[:,2], label = "z dir_est", color = "green")
     # axes[2, 0].plot(times[WINDOW_WIDTH:], input_goal[WINDOW_WIDTH:, 2], label="z goal")
     # axes[2, 0].plot(times[WINDOW_WIDTH:], true_states[WINDOW_WIDTH:, 2], label="z (altitude)")
-    lines[i].set_data(times[WINDOW_WIDTH:], input_goal[WINDOW_WIDTH:, 2])
+    lines[i].set_data(times, input_goal[i_1:i_2, 2])
     i += 1
-    lines[i].set_data(times[WINDOW_WIDTH:], true_states[WINDOW_WIDTH:, 2])
+    lines[i].set_data(times, true_states[i_1:i_2, 2])
+    i += 1
+    lines[i].set_data(times, est_states[i_1:i_2, 2])
     i += 1
 
     # axes[0, 1].plot(times, np.degrees(est_states[:,6]), label = "roll_est", color = "green")
     # axes[0, 1].plot(times[WINDOW_WIDTH:], np.degrees(true_states[WINDOW_WIDTH:, 6]), label="roll")
-    lines[i].set_data(times[WINDOW_WIDTH:], np.degrees(true_states[WINDOW_WIDTH:, 6]))
+    lines[i].set_data(times, np.degrees(true_states[i_1:i_2, 6]))
+    i += 1
+    lines[i].set_data(times, np.degrees(est_states[i_1:i_2, 6]))
     i += 1
 
     # axes[1, 1].plot(times, np.degrees(est_states[:,7]), label = "pitch_est", color = "green")
     # axes[1, 1].plot(times[WINDOW_WIDTH:], np.degrees(true_states[WINDOW_WIDTH:, 7]), label="pitch")
-    lines[i].set_data(times[WINDOW_WIDTH:], np.degrees(true_states[WINDOW_WIDTH:, 7]))
+    lines[i].set_data(times, np.degrees(true_states[i_1:i_2, 7]))
+    i += 1
+    lines[i].set_data(times, np.degrees(est_states[i_1:i_2, 7]))
     i += 1
 
     # axes[2, 1].plot(times, np.degrees(est_states[:,8]), label = "yaw_est", color = "green")
     # axes[2, 1].plot(times[WINDOW_WIDTH:], np.degrees(yaw_goal[WINDOW_WIDTH:]), label="yaw goal")
     # axes[2, 1].plot(times[WINDOW_WIDTH:], np.degrees(true_states[WINDOW_WIDTH:, 8]), label="yaw")
-    lines[i].set_data(times[WINDOW_WIDTH:], np.degrees(yaw_goal[WINDOW_WIDTH:]))
+    lines[i].set_data(times, np.degrees(yaw_goal[i_1:i_2,]))
     i += 1
-    lines[i].set_data(times[WINDOW_WIDTH:], np.degrees(true_states[WINDOW_WIDTH:, 8]))
+    lines[i].set_data(times, np.degrees(true_states[i_1:i_2, 8]))
     i += 1
-
-    #if (plt_pause == True):
-      #  plt.pause(0.000000000000001)
+    lines[i].set_data(times, np.degrees(est_states[i_1:i_2, 8]))
+    i += 1
 
     try:
         for i in range(axes.shape[0]):
@@ -129,7 +151,63 @@ def plot_results(figure, axes, lines, times, true_states, est_states, torques, s
     except (_tkinter.TclError):
         figure = None
 
-    """
+   
+def plot_all_results(times, true_states, est_states, torques, speeds, accels, input_goal, yaw_goal, plt_pause=False, plt_show = False):
+    
+    if (plt_show == True):
+        i_1 = 0
+        i_2 = -1
+        fig1, ax1 = plt.subplots(3,2,figsize=(10,  7))
+        fig1.suptitle('x, y, z, roll, pitch, yaw', fontsize=16)
+        ax1[0,0].plot(times, est_states[:,0], label = "x dir_est", color = "green")
+        ax1[0,0].plot(times[i_1:i_2], input_goal[i_1:i_2,0], label = "x goal")
+        ax1[0,0].plot(times[i_1:i_2], true_states[i_1:i_2,0], label = "x dir")
+        ax1[0,0].set_xlabel('time (s)')
+        ax1[0,0].set_ylabel('x (m)')
+        ax1[0,0].legend()
+
+        ax1[1,0].plot(times, est_states[:,1], label = "y dir_est" , color = "green")
+        ax1[1,0].plot(times[i_1:i_2], input_goal[i_1:i_2,1], label = "y goal")
+        ax1[1,0].plot(times[i_1:i_2], true_states[i_1:i_2,1], label = "y dir")
+        ax1[1,0].set_xlabel('time (s)')
+        ax1[1,0].set_ylabel('y (m)')
+        ax1[1,0].legend()
+
+        # ax1[2,0].plot(input_goal[0:-1:1000,0], input_goal[0:-1:1000,1], label = "x-y goal")
+        # ax1[2,0].plot(true_states[0:-1:1000,0], true_states[0:-1:1000,1], label = "true x-y")
+        # ax1[2,0].set_xlabel('x (m)')
+        # ax1[2,0].set_ylabel('y (m)')
+        # ax1[2,0].set_ylim([0,11])
+        # ax1[2,0].legend()
+
+        ax1[2,0].plot(times, est_states[:,2], label = "z dir_est", color = "green")
+        ax1[2,0].plot(times[i_1:i_2], input_goal[i_1:i_2,2], label = "z goal")
+        ax1[2,0].plot(times[i_1:i_2], true_states[i_1:i_2,2], label = "z (altitude)")
+        ax1[2,0].set_xlabel('time (s)')
+        ax1[2,0].set_ylabel('z (m)')
+        # ax1[2,0].set_ylim([0,11])
+        ax1[2,0].legend()
+
+        ax1[0,1].plot(times, np.degrees(est_states[:,6]), label = "roll_est", color = "green")
+        ax1[0,1].plot(times[i_1:i_2], np.degrees(true_states[i_1:i_2,6]), label = "roll")
+        ax1[0,1].set_xlabel('time (s)')
+        ax1[0,1].set_ylabel('roll (deg)')
+        ax1[0,1].legend()
+
+        ax1[1,1].plot(times, np.degrees(est_states[:,7]), label = "pitch_est", color = "green")
+        ax1[1,1].plot(times[i_1:i_2], np.degrees(true_states[i_1:i_2,7]), label = "pitch")
+        ax1[1,1].set_xlabel('time (s)')
+        ax1[1,1].set_ylabel('pitch (deg)')
+        ax1[1,1].legend()
+
+        ax1[2,1].plot(times, np.degrees(est_states[:,8]), label = "yaw_est", color = "green")
+        ax1[2,1].plot(times[i_1:i_2], np.degrees(yaw_goal[i_1:i_2]), label = "yaw goal")
+        ax1[2,1].plot(times[i_1:i_2], np.degrees(true_states[i_1:i_2,8]), label = "yaw")
+        ax1[2,1].set_xlabel('time (s)')
+        ax1[2,1].set_ylabel('yaw (deg)')
+        ax1[2,1].legend()
+        plt.show() 
+
     # fig2, ax2 = plt.subplots(3,2,figsize=(10,  7))
     # fig2.suptitle('v_x, v_y, v_z, roll_rate, pitch_rate, yaw_rate', fontsize=16)
     # ax2[0,0].plot(times, true_states[:,3], label = "x_vel")
@@ -209,4 +287,4 @@ def plot_results(figure, axes, lines, times, true_states, est_states, torques, s
     # ax5[2].set_xlabel('time (s)')
     # ax5[2].set_ylabel('a_z (m/s^2)')
     # ax5[2].legend()
-    """
+    

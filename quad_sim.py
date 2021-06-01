@@ -9,9 +9,8 @@ import controller
 import estimator
 import gui
 import cv2
-import pycontroller
 import quadcopter
-from Plot_results import plot_results, init_plot
+from Plot_results import plot_results, init_plot, plot_all_results
 from path_planner.path_planner import get_test_paths
 
 # Constants
@@ -35,13 +34,28 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
                          'weight': 7}}  # w in kg, L and r in mm, prop_size in in
 
     # Controller parameters Without estimator
+    # CONTROLLER_PARAMETERS = {'Motor_limits': [1000, 45000],
+    #                          'Tilt_limits': [-20, 20],  # degrees
+    #                          'Yaw_Control_Limits': [-900, 900],
+    #                          'Z_XY_offset': 500,
+    #                          'Linear_PID': {'P': [120000, 120000, 10000],
+    #                                         'I': [0, 0, 0],
+    #                                         'D': [100000, 100000, 2000]},
+    #                          'Linear_To_Angular_Scaler': [1, 1, 0],
+    #                          'Yaw_Rate_Scaler': 1.1,
+    #                          'Angular_PID': {'P': [7000, 6500, 3000],
+    #                                          'I': [0, 0, 0],
+    #                                          'D': [3000, 3000, 1200]},
+    #                          }
+
+     # Controller parameters with the estimator
     CONTROLLER_PARAMETERS = {'Motor_limits': [1000, 45000],
                              'Tilt_limits': [-20, 20],  # degrees
                              'Yaw_Control_Limits': [-900, 900],
                              'Z_XY_offset': 500,
-                             'Linear_PID': {'P': [120000, 120000, 10000],
-                                            'I': [0, 0, 0],
-                                            'D': [100000, 100000, 2000]},
+                             'Linear_PID': {'P': [120000, 120000, 15000],
+                                            'I': [70, 80, 5],
+                                            'D': [150000, 155000, 2100]},
                              'Linear_To_Angular_Scaler': [1, 1, 0],
                              'Yaw_Rate_Scaler': 1.1,
                              'Angular_PID': {'P': [7000, 6500, 3000],
@@ -102,19 +116,22 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
         if i < PATH_LENGTH-1:
             distance_to_go = distance(GOALS[i], GOALS[i+1])
             total_distance_travelled += distance_to_go
+        
         goal = GOALS[i]
         next_goal = GOALS[i] if i == PATH_LENGTH-1 else GOALS[i+1]
         nextnext_goal = GOALS[i] if i == PATH_LENGTH - 1 else GOALS[i + 1]
-        print(goal)
+        print("Goal:{0}, idx:{1}".format(goal, i))
         ctrl.update_target(goal)
         ctrl.update_yaw_target(0)
         goal_start_time = quad.get_time()
         time_lapse = 0
         true_pos = np.array(quad.get_state('q1')[0:3])
-        est_state = np.array(est.get_estimated_state('q1')[0:3])
-        dist = distance(est_state, goal)
-        next_dist = distance(est_state, next_goal)
-        nextnext_dist = distance(est_state, nextnext_goal)
+        est_pos = np.array(est.get_estimated_state('q1')[0:3])
+        
+        dist = distance(est_pos, goal)
+        next_dist = distance(est_pos, next_goal)
+        nextnext_dist = distance(est_pos, nextnext_goal)
+        
         while not (dist < tolerance or
                next_dist < 0.75*tolerance or
                nextnext_dist < 0.5*tolerance) and not \
@@ -134,20 +151,22 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
             torques = np.append(torques, np.array([torque]), axis=0)
             speeds = np.append(speeds, np.array([quad.get_motor_speeds('q1')]), axis=0)
             accels = np.append(accels, np.array([quad.get_linear_accelertaions('q1')]), axis=0)
+            input_goal = np.append(input_goal, np.array([goal]), axis=0)
+            yaw_goal = np.append(yaw_goal, np.array([0]), axis=0)
 
             time = quad.get_time()
             times = np.append(times, np.array([(time - simulation_start_time).total_seconds()]), axis=0)
             time_lapse = (datetime.datetime.now() - goal_start_time).total_seconds()
 
-            # dist = np.linalg.norm(true_state[0:3] - goal)
+            
             dist = distance(est_state[0:3], goal)
             next_dist = distance(est_state[0:3], next_goal)
             nextnext_dist = distance(est_state[0:3], nextnext_goal)
+            avg_velocity = total_distance_travelled/(datetime.datetime.now()-simulation_start_time).total_seconds()
 
-            input_goal = np.append(input_goal, np.array([goal]), axis=0)
-            yaw_goal = np.append(yaw_goal, np.array([0]), axis=0)
+            
             if venue_path is not None:
-                new_image = cv2.circle(map_image.copy(), (int(est_state[0]), int(est_state[1])),
+                new_image = cv2.circle(map_image.copy(), (int(true_state[0]), int(true_state[1])),
                                        3, (255, 0, 255, 255), -1)
                 cv2.imshow('Real time path', new_image)
                 key = cv2.waitKey(1)
@@ -162,8 +181,9 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
                     ctrl.stop_thread()
                     est.stop_thread()
                     exit(1)
+            plot_results(fig, axes, lines, times, true_states, est_states, torques, speeds, accels, input_goal, yaw_goal, avg_velocity, plt_pause=True)
 
-        plot_results(fig, axes, lines, times, true_states, est_states, torques, speeds, accels, input_goal, yaw_goal, plt_pause=True)
+        
 
     sim_end_time = datetime.datetime.now()
     sim_total_time = (sim_end_time - sim_start_time).total_seconds()
@@ -179,48 +199,11 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
 
     np.savetxt('error_analysis/true_data.txt', true_states)
     np.savetxt('error_analysis/est_data.txt', est_states)
-    # plot_results(times, true_states, est_states, torques, speeds, accels, input_goal, yaw_goal, plt_pause=False)
+    plt.ioff()
+    plot_all_results(times, true_states, est_states, torques, speeds, accels, input_goal, yaw_goal, plt_show=True)
+
 
     return error
-
-
-def Single_Velocity():
-    # Set goals to go to
-    GOALS = [(0.5, 0, 2), (0, 0.5, 2), (-0.5, 0, 2), (0, -0.5, 2)]
-    # Define the quadcopters
-    QUADCOPTER = {'q1': {'position': [0, 0, 0], 'orientation': [0, 0, 0], 'L': 0.3, 'r': 0.1, 'prop_size': [10, 4.5],
-                         'weight': 1.2}}
-    # Controller parameters
-    CONTROLLER_PARAMETERS = {'Motor_limits': [4000, 9000],
-                             'Tilt_limits': [-10, 10],
-                             'Yaw_Control_Limits': [-900, 900],
-                             'Z_XY_offset': 500,
-                             'Linear_PID': {'P': [2000, 2000, 7000], 'I': [0.25, 0.25, 4.5], 'D': [50, 50, 5000]},
-                             'Linear_To_Angular_Scaler': [1, 1, 0],
-                             'Yaw_Rate_Scaler': 0.18,
-                             'Angular_PID': {'P': [22000, 22000, 1500], 'I': [0, 0, 1.2], 'D': [12000, 12000, 0]},
-                             }
-
-    # Catch Ctrl+C to stop threads
-    signal.signal(signal.SIGINT, signal_handler)
-    # Make objects for quadcopter, gui and controller
-    quad = quadcopter.Quadcopter(QUADCOPTER)
-    gui_object = gui.GUI(quads=QUADCOPTER)
-    ctrl = pycontroller.Controller_PID_Velocity(quad.get_state, quad.get_time, quad.set_motor_speeds,
-                                                params=CONTROLLER_PARAMETERS, quad_identifier='q1')
-    # Start the threads
-    quad.start_thread(dt=QUAD_DYNAMICS_UPDATE, time_scaling=TIME_SCALING)
-    ctrl.start_thread(update_rate=CONTROLLER_DYNAMICS_UPDATE, time_scaling=TIME_SCALING)
-    # Update the GUI while switching between destination poitions
-    while (run == True):
-        for goal in GOALS:
-            ctrl.update_target(goal)
-            for i in range(150):
-                gui_object.quads['q1']['position'] = quad.get_position('q1')
-                gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
-                gui_object.update()
-    quad.stop_thread()
-    ctrl.stop_thread()
 
 
 def parse_args():
@@ -247,16 +230,18 @@ if __name__ == "__main__":
     paths = get_test_paths(venue=venue_name)
     map_image_path = './path_planner/venues/' + venue_name + '/' + venue_name + 'DiffusedPath.png'
 
+    
     for path_index, GOALS in paths.items():
-        x = GOALS[:, 0]
-        y = GOALS[:, 1]
-        z = GOALS[:, 2]
+        x = GOALS[0:-1, 0]
+        y = GOALS[0:-1, 1]
+        z = GOALS[0:-1, 2]
         input_range = np.arange(0, len(x))
         f_x = interpolate.interp1d(input_range, x)
         f_y = interpolate.interp1d(input_range, y)
         f_z = interpolate.interp1d(input_range, z)
 
-        data_points = 400
+        print("Goal shape is:", GOALS.shape )
+        data_points = 160
         new_range = np.linspace(0, len(input_range) - 1, data_points)
         x_new = f_x(new_range)
         y_new = f_y(new_range)
@@ -264,11 +249,22 @@ if __name__ == "__main__":
         INTERPOLATED_GOALS = np.vstack((x_new, y_new, z_new)).T
         print("New Goal shape is:", INTERPOLATED_GOALS.shape)
 
+        # # Ramp input
+        # x_ramp = np.linspace(0,10,10)
+        # x_ramp = np.hstack((x_ramp,np.linspace(10,0,10)))
+        # y_ramp = np.linspace(0,20,20)
+        # # y_ramp = np.hstack((y_ramp,np.linspace(20,0,10)))
+        # z_ramp = np.linspace(5,5,20)
+        # GOALS = np.vstack((x_ramp,y_ramp,z_ramp)).T 
+        # YAWS = np.hstack((np.linspace(0, np.pi/4,10)))#, np.linspace(0, 0, 10)))
+        # YAWS = [0,0,0, np.pi/4,np.pi/4, np.pi/2,np.pi/2, 0.7 * np.pi, 0.7 *np.pi, 0.7 * np.pi, 0,0,0,0,0]
+
+        GOALS = GOALS[-30:-1,:]
         number_of_trials = 1
         goal_time_limit = 3  # Amount of time limit to spend on a Goal
-        tolerance = 2  # Steady state error
+        tolerance = 3  # Steady state error
 
-        error = Single_Point2Point(GOALS=GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance, plt_show=False, venue_path=map_image_path)
+        error = Single_Point2Point(GOALS=INTERPOLATED_GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance, plt_show=True, venue_path = map_image_path) #venue_path=map_image_path
         # print("error shape is:", error.shape[0])
 
     # for i in range(0,number_of_trials-1):
