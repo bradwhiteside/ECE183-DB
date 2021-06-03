@@ -29,9 +29,9 @@ class EKF():
         self.mean = np.zeros(12)
         self.cov = np.eye(12,12) * 0.1
 
-        self.Q, self.R, self.Q_gyro = get_covariances(self.quad_id) #3*3 for now
+        self.Q_accel, self.R, self.Q_gyro = get_covariances(self.quad_id) #3*3 for now
 
-        self.Q[1,1] =np.sqrt(self.Q_gyro[1,1] +  self.Q[1,1])
+        self.Q =np.sqrt(self.Q_gyro**2 +  self.Q_accel**2)
   
 
 
@@ -41,7 +41,7 @@ class EKF():
 
         self.thread_object = None
         self.target = [0,0,0]
-        self.time_update_rate = 0.005   # the start thread changes it
+        self.time_update_rate = 0.005   # the start thread function changes it to whatever set in main
         self.run = True
 
 
@@ -104,7 +104,7 @@ class EKF():
         # print(self.mean[2] - self.get_positions(self.quad_id)[2])
         # print(self.mean[0:3])
         A = np.eye(3,3)
-        G = np.eye(3,3) * self.time_update_rate
+        G = np.eye(3,3) * [1,1,20]#* self.time_update_rate
         self.cov[0:3,0:3] = self.cov[0:3,0:3] + self.time_update_rate * (A @ self.cov[0:3,0:3] + self.cov[0:3,0:3] @ A.T + G @ self.Q @ G.T)
         # print(np.degrees(self.mean[6:9] - self.get_states(self.quad_id)[6:9]))
         
