@@ -32,7 +32,7 @@ def init_plot(plt_show):
     #axes[1, 1].legend()
 
     axes[2, 1].set_xlabel('time (s)')
-    axes[2, 1].set_ylabel('yaw (deg)')
+    axes[2, 1].set_ylabel('overshoot (m)')
     #axes[2, 1].legend()
     
     dummy_1D_values = np.array([0])
@@ -64,15 +64,13 @@ def init_plot(plt_show):
     lines.extend(axes[1, 1].plot(dummy_1D_values, dummy_state_values[:, 7], label="pitch est"))
 
     # axes[2,1].plot(times, np.degrees(est_states[:,8]), label = "yaw_est", color = "green")
-    lines.extend(axes[2, 1].plot(dummy_1D_values, dummy_1D_values, label="yaw goal"))
-    lines.extend(axes[2, 1].plot(dummy_1D_values, dummy_state_values[:, 8], label="yaw"))
-    lines.extend(axes[2, 1].plot(dummy_1D_values, dummy_state_values[:, 8], label="yaw est"))
+    lines.extend(axes[2, 1].plot(dummy_1D_values, dummy_1D_values, label="overshoot"))
 
     return fig1, axes, lines
 
 
 # Plot the path
-def plot_results(figure, axes, lines, times, true_states, est_states, torques, speeds, accels, input_goal, yaw_goal, avg_velocity,
+def plot_results(figure, axes, lines, times, true_states, est_states, torques, speeds, accels, input_goal, overshoots, avg_velocity,
                  plt_pause=False, plt_show = False):
     if figure is None or axes is None or lines is None:
         return
@@ -134,11 +132,7 @@ def plot_results(figure, axes, lines, times, true_states, est_states, torques, s
     # axes[2, 1].plot(times, np.degrees(est_states[:,8]), label = "yaw_est", color = "green")
     # axes[2, 1].plot(times[WINDOW_WIDTH:], np.degrees(yaw_goal[WINDOW_WIDTH:]), label="yaw goal")
     # axes[2, 1].plot(times[WINDOW_WIDTH:], np.degrees(true_states[WINDOW_WIDTH:, 8]), label="yaw")
-    lines[i].set_data(times, np.degrees(yaw_goal[i_1:i_2,]))
-    i += 1
-    lines[i].set_data(times, np.degrees(true_states[i_1:i_2, 8]))
-    i += 1
-    lines[i].set_data(times, np.degrees(est_states[i_1:i_2, 8]))
+    lines[i].set_data(times, overshoots[i_1:i_2,])
     i += 1
 
     try:

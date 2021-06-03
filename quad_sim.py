@@ -22,8 +22,13 @@ ESTIMATION_OBSERVATION_UPDATE = 0.1
 PLOTTER_UPDATE = 1.0
 run = True
 
+
 def distance(x, y):
     return np.linalg.norm(x - y)
+
+def calc_overshoot(line_start_pt, line_end_pt, est_pos):
+    return np.linalg.norm(np.cross(line_start_pt-line_end_pt, est_pos-line_start_pt)/np.linalg.norm(line_start_pt-line_end_pt))
+
 
 def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_path=None):
     start = GOALS[0]
@@ -100,6 +105,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
     torques = np.empty((0, 4), float)
     speeds = np.empty((0, 6), float)
     accels = np.empty((0, 3), float)
+    overshoots = np.empty((0, 1), dtype=float)
 
     simulation_start_time = quad.get_time()
     plt.ion()
@@ -113,12 +119,13 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
     PATH_LENGTH = len(GOALS)
     sim_start_time = datetime.datetime.now()
     for i in range(PATH_LENGTH):
-        if i < PATH_LENGTH-1:
-            distance_to_go = distance(GOALS[i], GOALS[i+1])
+        if i < PATH_LENGTH - 1:
+            distance_to_go = distance(GOALS[i], GOALS[i + 1])
             total_distance_travelled += distance_to_go
-        
+
         goal = GOALS[i]
-        next_goal = GOALS[i] if i == PATH_LENGTH-1 else GOALS[i+1]
+        last_goal = GOALS[i] if i == 0 else GOALS[i - 1]
+        next_goal = GOALS[i] if i == PATH_LENGTH - 1 else GOALS[i + 1]
         nextnext_goal = GOALS[i] if i == PATH_LENGTH - 1 else GOALS[i + 1]
         print("Goal:{0}, idx:{1}".format(goal, i))
         ctrl.update_target(goal)
@@ -127,20 +134,20 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
         time_lapse = 0
         true_pos = np.array(quad.get_state('q1')[0:3])
         est_pos = np.array(est.get_estimated_state('q1')[0:3])
-        
+
         dist = distance(est_pos, goal)
         next_dist = distance(est_pos, next_goal)
         nextnext_dist = distance(est_pos, nextnext_goal)
-        
+
         while not (dist < tolerance or
-               next_dist < 0.75*tolerance or
-               nextnext_dist < 0.5*tolerance) and not \
-               time_lapse > goal_time_limit*distance_to_go:
-            # print("dist",dist)
-            # print(t)
+                   next_dist < tolerance or
+                   nextnext_dist < 0.75 * tolerance):  # and not \
+            # time_lapse > goal_time_limit:
+             # print("dist",dist)
             # gui_object.quads['q1']['position'] = quad.get_position('q1')
             # gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
             # gui_object.update()
+
 
             true_state = np.array(quad.get_state('q1'))
             est_state = np.array(est.get_estimated_state('q1'))
@@ -153,18 +160,17 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
             accels = np.append(accels, np.array([quad.get_linear_accelertaions('q1')]), axis=0)
             input_goal = np.append(input_goal, np.array([goal]), axis=0)
             yaw_goal = np.append(yaw_goal, np.array([0]), axis=0)
+            overshoots = np.append(overshoots, np.array([[calc_overshoot(last_goal, goal, est_state[0:3])]]), axis=0)
 
             time = quad.get_time()
             times = np.append(times, np.array([(time - simulation_start_time).total_seconds()]), axis=0)
             time_lapse = (datetime.datetime.now() - goal_start_time).total_seconds()
 
-            
             dist = distance(est_state[0:3], goal)
             next_dist = distance(est_state[0:3], next_goal)
             nextnext_dist = distance(est_state[0:3], nextnext_goal)
-            avg_velocity = total_distance_travelled/(datetime.datetime.now()-simulation_start_time).total_seconds()
+            avg_velocity = total_distance_travelled / (datetime.datetime.now() - simulation_start_time).total_seconds()
 
-            
             if venue_path is not None:
                 new_image = cv2.circle(map_image.copy(), (int(true_state[0]), int(true_state[1])),
                                        3, (255, 0, 255, 255), -1)
@@ -181,7 +187,10 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
                     ctrl.stop_thread()
                     est.stop_thread()
                     exit(1)
-            plot_results(fig, axes, lines, times, true_states, est_states, torques, speeds, accels, input_goal, yaw_goal, avg_velocity, plt_pause=True)
+
+
+            plot_results(fig, axes, lines, times, true_states, est_states, torques, speeds, accels, input_goal,
+                         overshoots, avg_velocity, plt_pause=True)
 
         
 
@@ -200,7 +209,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
     np.savetxt('error_analysis/true_data.txt', true_states)
     np.savetxt('error_analysis/est_data.txt', est_states)
     plt.ioff()
-    plot_all_results(times, true_states, est_states, torques, speeds, accels, input_goal, yaw_goal, plt_show=True)
+    plot_all_results(times, true_states, est_states, torques, speeds, accels, input_goal, overshoots, plt_show=True)
 
 
     return error
@@ -230,77 +239,47 @@ if __name__ == "__main__":
     paths = get_test_paths(venue=venue_name)
     map_image_path = './path_planner/venues/' + venue_name + '/' + venue_name + 'DiffusedPath.png'
 
-    
     for path_index, GOALS in paths.items():
-        x = GOALS[0:-1, 0]
-        y = GOALS[0:-1, 1]
-        z = GOALS[0:-1, 2]
-        input_range = np.arange(0, len(x))
-        f_x = interpolate.interp1d(input_range, x)
-        f_y = interpolate.interp1d(input_range, y)
-        f_z = interpolate.interp1d(input_range, z)
 
-        print("Goal shape is:", GOALS.shape )
-        data_points = 160
-        new_range = np.linspace(0, len(input_range) - 1, data_points)
-        x_new = f_x(new_range)
-        y_new = f_y(new_range)
-        z_new = f_z(new_range)
-        INTERPOLATED_GOALS = np.vstack((x_new, y_new, z_new)).T
-        print("New Goal shape is:", INTERPOLATED_GOALS.shape)
-
-        # # Ramp input
-        # x_ramp = np.linspace(0,10,10)
-        # x_ramp = np.hstack((x_ramp,np.linspace(10,0,10)))
-        # y_ramp = np.linspace(0,20,20)
-        # # y_ramp = np.hstack((y_ramp,np.linspace(20,0,10)))
-        # z_ramp = np.linspace(5,5,20)
-        # GOALS = np.vstack((x_ramp,y_ramp,z_ramp)).T 
-        # YAWS = np.hstack((np.linspace(0, np.pi/4,10)))#, np.linspace(0, 0, 10)))
-        # YAWS = [0,0,0, np.pi/4,np.pi/4, np.pi/2,np.pi/2, 0.7 * np.pi, 0.7 *np.pi, 0.7 * np.pi, 0,0,0,0,0]
-
-        # GOALS = GOALS[-30:-1,:]
         number_of_trials = 1
-        goal_time_limit = 3  # Amount of time limit to spend on a Goal
-        tolerance = 3  # Steady state error
+        goal_time_limit = 2  # Amount of time limit to spend on a Goal
+        tolerance = 2  # Steady state error
 
-        error = Single_Point2Point(GOALS=INTERPOLATED_GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance, plt_show=True, venue_path = map_image_path) #venue_path=map_image_path
-        # print("error shape is:", error.shape[0])
+        error = Single_Point2Point(GOALS=GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance, plt_show=True, venue_path=map_image_path)
         np.savetxt('error_analysis/errors.txt', error)
 
-    # for i in range(0,number_of_trials-1):
-    #     print("Trial", i)
-    #     new_error = Single_Point2Point()
-    #     error_len = error.shape[0]
-    #     new_error_leng = new_error.shape[0]
-    #     diff = np.abs(new_error_leng - error_len)
+    # for path_index, GOALS in paths.items():
+    #     x = GOALS[0:-1, 0]
+    #     y = GOALS[0:-1, 1]
+    #     z = GOALS[0:-1, 2]
+    #     input_range = np.arange(0, len(x))
+    #     f_x = interpolate.interp1d(input_range, x)
+    #     f_y = interpolate.interp1d(input_range, y)
+    #     f_z = interpolate.interp1d(input_range, z)
 
-    #     if new_error_leng > error_len :
-    #         # new_error = new_error[:-diff]
-    #         # error += new_error #np.concatenate((error, new_error))
-    #         np.concatenate((error, new_error))
-    #         print('new_error shranked by {} elements'.format(diff))
+    #     print("Goal shape is:", GOALS.shape )
+    #     data_points = 160
+    #     new_range = np.linspace(0, len(input_range) - 1, data_points)
+    #     x_new = f_x(new_range)
+    #     y_new = f_y(new_range)
+    #     z_new = f_z(new_range)
+    #     INTERPOLATED_GOALS = np.vstack((x_new, y_new, z_new)).T
+    #     print("New Goal shape is:", INTERPOLATED_GOALS.shape)
 
-    #     elif error_len > new_error_leng :
-    #         # error = error[:-diff]
-    #         # error += new_error
-    #         np.concatenate((error, new_error))
-    #         print('error shranked by {} elements'.format(diff))
+    # for path_index, GOALS in paths.items():
+    #     x = GOALS[0:-1, 0]
+    #     y = GOALS[0:-1, 1]
+    #     z = GOALS[0:-1, 2]
+    #     input_range = np.arange(0, len(x))
+    #     f_x = interpolate.interp1d(input_range, x)
+    #     f_y = interpolate.interp1d(input_range, y)
+    #     f_z = interpolate.interp1d(input_range, z)
 
-    #     # print("Error length is:",new_error_leng)
-    #     # error = np.concatenate((error, Single_Point2Point()))
-
-    # #error = error/number_of_trials
-    # print(error.shape)
-    # np.savetxt('error_analysis/errors.txt', error)
-
-    # args = parse_args()
-    # if args.time_scale>=0: TIME_SCALING = args.time_scale
-    # if args.quad_update_time>0: QUAD_DYNAMICS_UPDATE = args.quad_update_time
-    # if args.controller_update_time>0: CONTROLLER_DYNAMICS_UPDATE = args.controller_update_time
-    # if args.sim == 'single_p2p':
-    #     Single_Point2Point()
-    # elif args.sim == 'multi_p2p':
-    #     Multi_Point2Point()
-    # elif args.sim == 'single_velocity':
-    #     Single_Velocity()
+    #     print("Goal shape is:", GOALS.shape )
+    #     data_points = 160
+    #     new_range = np.linspace(0, len(input_range) - 1, data_points)
+    #     x_new = f_x(new_range)
+    #     y_new = f_y(new_range)
+    #     z_new = f_z(new_range)
+    #     INTERPOLATED_GOALS = np.vstack((x_new, y_new, z_new)).T
+    #     print("New Goal shape is:", INTERPOLATED_GOALS.shape)

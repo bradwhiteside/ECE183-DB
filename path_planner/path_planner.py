@@ -209,19 +209,22 @@ class A_star(PathFinder):
         length = len(path)
         debug("Path is %d points long" % length)
         pruned_path = np.array(path).reshape((length, 3))
-        pruned_path = pruned_path[::4]
 
         # From https://stackoverflow.com/questions/20618804/how-to-smooth-a-curve-in-the-right-way
         box_pts = 12
         box = np.ones(box_pts) / box_pts
-        for _ in range(1):
+        for _ in range(3):
             x = pruned_path[:, 0]
             y = pruned_path[:, 1]
             pruned_path[:, 0] = scipy.ndimage.convolve(x, box)
             pruned_path[:, 1] = scipy.ndimage.convolve(y, box)
 
+        # remove duplicate points that may have been introduced by last step
+        _, indexes = np.unique(pruned_path, axis=0, return_index=True)
+        pruned_path = np.array([pruned_path[index] for index in sorted(indexes)])
+
         # prune collinear pts
-        i = 0
+        """i = 0
         while i < (pruned_path.shape[0] - 2):
             p1 = pruned_path[i]
             p2 = pruned_path[i+1]
@@ -230,7 +233,7 @@ class A_star(PathFinder):
                 pruned_path = np.delete(pruned_path, i + 1, axis=0)
             else:
                 i += 1
-        debug("Pruned Path is %d points long" % len(pruned_path))
+        debug("Pruned Path is %d points long" % len(pruned_path))"""
         return pruned_path
 
     def diffuse(self, iter, k=(9, 9), transparent_cost=196, USE_CACHE=True):
@@ -429,7 +432,7 @@ def get_test_paths(venue, DRAW=False, USE_CACHE=True):
     return paths
 
 if __name__ == '__main__':
-    DEBUG = True
+    DEBUG = False
     paths = get_test_paths("Test", DRAW=True, USE_CACHE=False)
-    # paths = get_test_paths("RoseBowl", DRAW=True, USE_CACHE=True)
-    # paths = get_test_paths("Coachella", DRAW=True, USE_CACHE=True)
+    paths = get_test_paths("RoseBowl", DRAW=True, USE_CACHE=False)
+    paths = get_test_paths("Coachella", DRAW=True, USE_CACHE=False)
