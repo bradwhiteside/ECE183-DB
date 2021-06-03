@@ -15,7 +15,7 @@ import cv2
 from queue import PriorityQueue
 from abc import ABC, abstractmethod
 
-DEBUG = False
+DEBUG = True
 
 def debug(*msg):
     if DEBUG:
@@ -209,12 +209,12 @@ class A_star(PathFinder):
         length = len(path)
         debug("Path is %d points long" % length)
         pruned_path = np.array(path).reshape((length, 3))
-        pruned_path = pruned_path[::2]
+        pruned_path = pruned_path[::4]
 
         # From https://stackoverflow.com/questions/20618804/how-to-smooth-a-curve-in-the-right-way
         box_pts = 12
         box = np.ones(box_pts) / box_pts
-        for _ in range(3):
+        for _ in range(1):
             x = pruned_path[:, 0]
             y = pruned_path[:, 1]
             pruned_path[:, 0] = scipy.ndimage.convolve(x, box)
@@ -384,13 +384,13 @@ class path_finder_thread_spawner:
         self.paths = paths
         self.threads = []
 
-    def start_thread(self, s, t):
-        t = threading.Thread(target=self.thread_run, args=(s, t))
+    def start_thread(self, s, t, DRAW, USE_CACHE):
+        t = threading.Thread(target=self.thread_run, args=(s, t, DRAW, USE_CACHE))
         self.threads.append(t)
         t.start()
 
-    def thread_run(self, s, t):
-        self.paths[(s, t)] = self.A.find_path(s, t, USE_CACHE=False)
+    def thread_run(self, s, t, DRAW, USE_CACHE):
+        self.paths[(s, t)] = self.A.find_path(s, t, DRAW=DRAW, USE_CACHE=USE_CACHE)
 
     def join_all_threads(self):
         for t in self.threads:
@@ -398,6 +398,8 @@ class path_finder_thread_spawner:
 
 def get_test_paths(venue, DRAW=False, USE_CACHE=True):
     global TEST_PARAMS
+    debug("USE_CACHE = {}".format(USE_CACHE))
+    debug("DRAW = {}".format(DRAW))
     if venue not in TEST_PARAMS:
         print("Invalid venue name: %s", venue)
         exit(1)
@@ -418,7 +420,7 @@ def get_test_paths(venue, DRAW=False, USE_CACHE=True):
             endpts_string = '(' + str(s[0]) + ", " + str(s[1]) + ') --> (' + str(t[0]) + ", " + str(t[1]) + ')'
             debug(venue + ": Finding path for ", endpts_string)
             P = path_finder_thread_spawner(deepcopy(a), paths)
-            P.start_thread(s, t)
+            P.start_thread(s, t, DRAW=DRAW, USE_CACHE=USE_CACHE)
             # path = a.find_path(s, t, DRAW=DRAW, USE_CACHE=USE_CACHE)
             # paths[(s, t)] = path
             # debug(venue + ": Found path for " + venue + ": " + endpts_string + ": {} pts long".format(len(path)))
@@ -427,7 +429,7 @@ def get_test_paths(venue, DRAW=False, USE_CACHE=True):
     return paths
 
 if __name__ == '__main__':
-    DEBUG = False
-    paths = get_test_paths("Test", DRAW=True, USE_CACHE=True)
-    paths = get_test_paths("RoseBowl", DRAW=True, USE_CACHE=True)
-    paths = get_test_paths("Coachella", DRAW=True, USE_CACHE=True)
+    DEBUG = True
+    paths = get_test_paths("Test", DRAW=True, USE_CACHE=False)
+    # paths = get_test_paths("RoseBowl", DRAW=True, USE_CACHE=True)
+    # paths = get_test_paths("Coachella", DRAW=True, USE_CACHE=True)
