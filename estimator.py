@@ -4,7 +4,7 @@ import time
 import threading
 
 class EKF():
-    def __init__(self, get_time, get_position, get_linear_rate, get_linear_accelerations, get_IMU_accelertaions, get_orientation, get_Gyro, get_state, get_motor_speeds, get_covariances, get_GPS, params, quads, quad_identifier):
+    def __init__(self, get_time, get_position, get_linear_rate, get_linear_accelerations, get_IMU_accelertaions, get_orientation, get_Gyro, get_Magnetometer, get_state, get_motor_speeds, get_covariances, get_GPS, params, quads, quad_identifier):
                 # get_time, get_position, get_linear_rate, get_orientation, get_angular_rate, quad.get_state, params=CONTROLLER_PARAMETERS,quad_identifier='q1'
        
         self.get_states = get_state
@@ -13,6 +13,7 @@ class EKF():
         self.get_linear_rates = get_linear_rate # x_dot, y_dot, z_dot in the inertial frame
         self.get_linear_accelerations = get_linear_accelerations
         self.get_IMU_accelertaions = get_IMU_accelertaions
+        self.get_Magnetometer = get_Magnetometer
         self.get_orientations = get_orientation
         # self.get_angular_rates = get_angular_rate
         self.get_GPS = get_GPS
@@ -83,6 +84,7 @@ class EKF():
         
         accel_mean = self.get_IMU_accelertaions(self.quad_id)
         complementary_angles = self.convert_accel_to_angle(accel_mean) #self.time_update_rate **0 #calc angles using the accelerometer
+        complementary_angles[2] = self.get_Magnetometer(self.quad_id)[2] 
         
         correction_gain = 0.5
         complementary_angles *= correction_gain
@@ -90,13 +92,12 @@ class EKF():
         G1 = 0.80
         G2 = 0.2
         self.mean[6:8] = G1 * self.mean[6:8] + G2 * complementary_angles[0:2]  #only for roll and pitch
-        # print(np.degrees(self.mean[6:9] - self.get_states(self.quad_id)[6:9]))
+        G3 = 0.98
+        G4 = 0.02
+        self.mean[8] = G3 * complementary_angles[2] + G4 * self.mean[8]
 
         #Kalman filter for x,y,z
-        roll_pitch_yaw_angles = self.mean[6:9]
-        roll_pitch_yaw_angles[2] = self.get_states(self.quad_id)[8]   
-
-        linear_accelerations = (self.rotation_matrix(roll_pitch_yaw_angles) @ (accel_mean)) + [0,0, self.g] # we add the gravity since when the drone is not accelrating
+        linear_accelerations = (self.rotation_matrix(self.mean[6:9]) @ (accel_mean)) + [0,0, self.g] # we add the gravity since when the drone is not accelrating
 
         self.mean[3:6] += linear_accelerations * self.time_update_rate
         F = self.mean[3:6]

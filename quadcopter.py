@@ -58,6 +58,9 @@ class Quadcopter():
             self.gyro_z_std = 3e-4
             self.zero_tol = np.radians(5)  # 5 deg/sec only for roll and pitch for now
 
+            #Magnetometer
+            self.magneto_std = 1e-2
+
             # GPS
             self.gps_x_std = 0.83
             self.gps_y_std = 0.83
@@ -206,7 +209,7 @@ class Quadcopter():
 
     def get_Gyro(self, quad_name):
         angular_rate_std = [self.gyro_x_std, self.gyro_y_std, self.gyro_z_std]
-        bias = [self.zero_tol, self.zero_tol, 0]
+        bias = [self.zero_tol, self.zero_tol, self.zero_tol]
         return np.random.normal(self.quads[quad_name]['state'][9:12] + bias, angular_rate_std)
 
     # These accelarations are wrt. inertial coordinates
@@ -221,13 +224,13 @@ class Quadcopter():
 
     def get_IMU_accelertaions(self, quad_name):
         R_inv = self.rotation_matrix_to_bd(self.quads[quad_name]['state'][6:9])  # u_dot, v_dot, omega_dot
-        # gravity = [-self.g * np.sin(self.quads[quad_name]['state'][7]),
-        #          + self.g * np.cos(self.quads[quad_name]['state'][7]) * np.sin(self.quads[quad_name]['state'][6]),
-        #          + self.g * np.cos(self.quads[quad_name]['state'][7]) * np.cos(self.quads[quad_name]['state'][6])]
-
         IMU_accel = R_inv @ (self.linear_accelerations_inertial - self.gravity_vect)
         accel_std = [self.accl_x_std, self.accl_y_std, self.accl_z_std]
         return np.random.normal(IMU_accel, accel_std)
+
+    def get_Magnetometer(self, quad_name):
+        return np.random.normal(self.quads[quad_name]['state'][6:9], [self.magneto_std,self.magneto_std,self.magneto_std])
+        # return self.quads[quad_name]['state'][6:9]
 
     def get_covariances(self, quad_name):
         return self.Q, self.R, self.Q_gyro
