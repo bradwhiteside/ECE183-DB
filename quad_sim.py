@@ -160,7 +160,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
             accels = np.append(accels, np.array([quad.get_linear_accelertaions('q1')]), axis=0)
             input_goal = np.append(input_goal, np.array([goal]), axis=0)
             yaw_goal = np.append(yaw_goal, np.array([0]), axis=0)
-            overshoots = np.append(overshoots, np.array([[calc_overshoot(last_goal, goal, est_state[0:3])]]), axis=0)
+            overshoots = np.append(overshoots, np.array([[calc_overshoot(last_goal, goal, est_state[0:3]), 2]]), axis=0)
 
             time = quad.get_time()
             times = np.append(times, np.array([(time - simulation_start_time).total_seconds()]), axis=0)
