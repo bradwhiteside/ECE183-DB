@@ -11,7 +11,7 @@ import gui
 import cv2
 import quadcopter
 from Plot_results import plot_results, init_plot, plot_all_results
-from path_planner.path_planner import get_test_paths
+from path_planner.path_planner import get_test_paths, TEST_PARAMS
 
 # Constants
 TIME_SCALING = 1.0  # Any positive number(Smaller is faster). 1.0->Real Time, 0.0->Run as fast as possible
@@ -105,7 +105,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
     torques = np.empty((0, 4), float)
     speeds = np.empty((0, 6), float)
     accels = np.empty((0, 3), float)
-    overshoots = np.empty((0, 1), dtype=float)
+    overshoots = np.empty((0, 2), dtype=float)
 
     simulation_start_time = quad.get_time()
     plt.ion()
@@ -235,18 +235,23 @@ def signal_handler(signal, frame):
 
 
 if __name__ == "__main__":
-    venue_name = "Test"
-    paths = get_test_paths(venue=venue_name)
-    map_image_path = './path_planner/venues/' + venue_name + '/' + venue_name + 'DiffusedPath.png'
+    venue_names = ["Test", "RoseBowl", "Coachella"]
+    for venue_name in venue_names:
+        paths = get_test_paths(venue=venue_name)
+        d0, d1, d2 = TEST_PARAMS[venue_name]["diffuse_params"]
+        d = (d0, d1[0], d1[1], d2)
 
-    for path_index, GOALS in paths.items():
+        for path_index, GOALS in paths.items():
+            number_of_trials = 1
+            goal_time_limit = 2  # Amount of time limit to spend on a Goal
+            tolerance = 2  # Steady state error
 
-        number_of_trials = 1
-        goal_time_limit = 2  # Amount of time limit to spend on a Goal
-        tolerance = 2  # Steady state error
+            num = abs(hash((path_index[0], path_index[1], GOALS[0][2], d)))
+            map_image_path = 'path_planner/venues/{}/{}DiffusedPath{}.png'.format(venue_name, venue_name, num)
 
-        error = Single_Point2Point(GOALS=GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance, plt_show=True, venue_path=map_image_path)
-        np.savetxt('error_analysis/errors.txt', error)
+            print("Running sim for ", path_index, " on ", map_image_path)
+            error = Single_Point2Point(GOALS=GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance, plt_show=True, venue_path=map_image_path)
+            np.savetxt('error_analysis/{}errors{}.txt'.format(venue_name, path_index), error)
 
     # for path_index, GOALS in paths.items():
     #     x = GOALS[0:-1, 0]
