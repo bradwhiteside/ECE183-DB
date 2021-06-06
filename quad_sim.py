@@ -30,7 +30,7 @@ def calc_overshoot(line_start_pt, line_end_pt, est_pos):
     return np.linalg.norm(np.cross(line_start_pt-line_end_pt, est_pos-line_start_pt)/np.linalg.norm(line_start_pt-line_end_pt))
 
 
-def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_path=None):
+def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_path=None, ratio=1.0):
     start = GOALS[0]
     YAWS = [0] * len(GOALS)
 
@@ -172,7 +172,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
             avg_velocity = total_distance_travelled / (datetime.datetime.now() - simulation_start_time).total_seconds()
 
             if venue_path is not None:
-                new_image = cv2.circle(map_image.copy(), (int(true_state[0]), int(true_state[1])),
+                new_image = cv2.circle(map_image.copy(), (round(true_state[0] / ratio), round(true_state[1] / ratio)),
                                        3, (255, 0, 255, 255), -1)
                 cv2.imshow('Real time path', new_image)
                 key = cv2.waitKey(1)
@@ -239,6 +239,7 @@ if __name__ == "__main__":
     for venue_name in venue_names:
         paths = get_test_paths(venue=venue_name)
         d0, d1, d2 = TEST_PARAMS[venue_name]["diffuse_params"]
+        distance_to_pixel_ratio = TEST_PARAMS[venue_name]["distance_to_pixel_ratio"]
         d = (d0, d1[0], d1[1], d2)
 
         for path_index, GOALS in paths.items():
@@ -250,7 +251,8 @@ if __name__ == "__main__":
             map_image_path = 'path_planner/venues/{}/{}DiffusedPath{}.png'.format(venue_name, venue_name, num)
 
             print("Running sim for ", path_index, " on ", map_image_path)
-            error = Single_Point2Point(GOALS=GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance, plt_show=True, venue_path=map_image_path)
+            error = Single_Point2Point(GOALS=GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance, plt_show=True,
+                                       venue_path=map_image_path, ratio=distance_to_pixel_ratio)
             np.savetxt('error_analysis/{}errors{}.txt'.format(venue_name, path_index), error)
 
     # for path_index, GOALS in paths.items():

@@ -350,31 +350,39 @@ class A_star(PathFinder):
 
         pruned_path = self.prune_path(path[::-1], path_cost[::-1])
 
-        with open(cache_path, 'w') as out:
-            np.savetxt(out, pruned_path, delimiter=' ', fmt='%d')
-
         if DRAW:
             name_base = self.map_image_path[:-4]
             draw_path(self.map_image_path, pruned_path, out_file=name_base + "Path" + str(num) + ".png")
             draw_path(name_base + "Orig.png", pruned_path, out_file=name_base + "OrigPath" + str(num) + ".png")
             draw_path(self.grid.grid.copy(), pruned_path, out_file=name_base + "DiffusedPath" + str(num) + ".png")
 
+        ratio = TEST_PARAMS[self.venue_name]["distance_to_pixel_ratio"]
+        for i in range(pruned_path.shape[0]):
+            pruned_path[i][0] = round(pruned_path[i][0] * ratio)
+            pruned_path[i][1] = round(pruned_path[i][1] * ratio)
+
+        with open(cache_path, 'w') as out:
+            np.savetxt(out, pruned_path, delimiter=' ', fmt='%.2f')
+
         return pruned_path
 
 TEST_PARAMS = {
     "Test": {
+        "distance_to_pixel_ratio": 1.0,
         "diffuse_params": [12, (15, 15), 196],
         "start": [(19, 24)],
         "target": [(211, 20)],
     },
 
     "RoseBowl": {
+        "distance_to_pixel_ratio": 0.25,
         "diffuse_params": [12, (25, 25), 196],
         "start": [(128, 296), (1263, 530), (46, 950), (1198, 1062)],
         "target": [(682, 310), (934, 676), (352, 684), (534, 1112)],
     },
 
     "Coachella": {
+        "distance_to_pixel_ratio": 0.75,
         "diffuse_params": [5, (7, 7), 196],
         "start": [(1447, 546), (1515, 547), (1568, 780), (1414, 855), (1413, 908), (1411, 957)],
         "target": [(263, 356), (1086, 701), (201, 790), (186, 1359), (666, 1391)],
@@ -399,9 +407,10 @@ class path_finder_thread_spawner:
         for t in self.threads:
             t.join()
 
-def get_test_paths(venue, DRAW=False, USE_CACHE=True):
+def get_test_paths(venue, DRAW=False, USE_PATH_CACHE=True, USE_DIFFUSED_CACHE=True):
     global TEST_PARAMS
-    debug("USE_CACHE = {}".format(USE_CACHE))
+    debug("USE_PATH_CACHE = {}".format(USE_PATH_CACHE))
+    debug("USE_DIFFUSED_CACHE = {}".format(USE_DIFFUSED_CACHE))
     debug("DRAW = {}".format(DRAW))
     if venue not in TEST_PARAMS:
         print("Invalid venue name: %s", venue)
@@ -413,7 +422,7 @@ def get_test_paths(venue, DRAW=False, USE_CACHE=True):
         a.grid.find_endpoints(50, 255)
         exit(0)
 
-    a.diffuse(*TEST_PARAMS[venue]["diffuse_params"], USE_CACHE=USE_CACHE)
+    a.diffuse(*TEST_PARAMS[venue]["diffuse_params"], USE_CACHE=USE_DIFFUSED_CACHE)
     start_pts = TEST_PARAMS[venue]["start"]
     target_pts = TEST_PARAMS[venue]["target"]
     paths = {}
@@ -423,7 +432,7 @@ def get_test_paths(venue, DRAW=False, USE_CACHE=True):
             endpts_string = '(' + str(s[0]) + ", " + str(s[1]) + ') --> (' + str(t[0]) + ", " + str(t[1]) + ')'
             debug(venue + ": Finding path for ", endpts_string)
             P = path_finder_thread_spawner(deepcopy(a), paths)
-            P.start_thread(s, t, DRAW=DRAW, USE_CACHE=USE_CACHE)
+            P.start_thread(s, t, DRAW=DRAW, USE_CACHE=USE_PATH_CACHE)
             # path = a.find_path(s, t, DRAW=DRAW, USE_CACHE=USE_CACHE)
             # paths[(s, t)] = path
             # debug(venue + ": Found path for " + venue + ": " + endpts_string + ": {} pts long".format(len(path)))
@@ -433,6 +442,6 @@ def get_test_paths(venue, DRAW=False, USE_CACHE=True):
 
 if __name__ == '__main__':
     DEBUG = False
-    paths = get_test_paths("Test", DRAW=True, USE_CACHE=False)
-    paths = get_test_paths("RoseBowl", DRAW=True, USE_CACHE=False)
-    paths = get_test_paths("Coachella", DRAW=True, USE_CACHE=False)
+    paths = get_test_paths("Test", DRAW=True, USE_PATH_CACHE=False, USE_DIFFUSED_CACHE=True)
+    paths = get_test_paths("RoseBowl", DRAW=True, USE_PATH_CACHE=False, USE_DIFFUSED_CACHE=True)
+    paths = get_test_paths("Coachella", DRAW=True, USE_PATH_CACHE=False, USE_DIFFUSED_CACHE=True)
