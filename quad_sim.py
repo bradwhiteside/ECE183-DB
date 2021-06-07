@@ -59,7 +59,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
                              'Yaw_Control_Limits': [-900, 900],
                              'Z_XY_offset': 500,
                              'Linear_PID': {'P': [120000, 120000, 15000],
-                                            'I': [70, 80, 7],
+                                            'I': [70, 80, 30],
                                             'D': [150000, 155000, 5500]},
                              'Linear_To_Angular_Scaler': [1, 1, 0],
                              'Yaw_Rate_Scaler': 1.1,
@@ -173,7 +173,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
 
             if venue_path is not None:
                 new_image = cv2.circle(map_image.copy(), (int(true_state[0]), int(true_state[1])),
-                                       3, (255, 0, 255, 255), -1)
+                                       7, (255, 0, 255, 255), -1)
                 cv2.imshow('Real time path', new_image)
                 key = cv2.waitKey(1)
                 if key == ord('q'):
@@ -196,7 +196,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
 
     sim_end_time = datetime.datetime.now()
     sim_total_time = (sim_end_time - sim_start_time).total_seconds()
-    print("Simulation took {}".format(sim_total_time))
+    print("Simulation took {} seconds".format(sim_total_time))
     print("Travelled a total of {} meters".format(total_distance_travelled))
 
     quad.stop_thread()
@@ -206,10 +206,13 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
 
     error = true_states - est_states
 
+    np.savetxt('error_analysis/times.txt', times)
     np.savetxt('error_analysis/true_data.txt', true_states)
     np.savetxt('error_analysis/est_data.txt', est_states)
+    np.savetxt('error_analysis/input_goal.txt', input_goal)
+    np.savetxt('error_analysis/yaw_goal.txt', yaw_goal)
     plt.ioff()
-    plot_all_results(times, true_states, est_states, torques, speeds, accels, input_goal, overshoots, plt_show=True)
+    # plot_all_results(times, true_states, est_states, torques, speeds, accels, input_goal, overshoots, plt_show=True)
 
 
     return error
@@ -235,7 +238,7 @@ def signal_handler(signal, frame):
 
 
 if __name__ == "__main__":
-    venue_names = ["Test", "RoseBowl", "Coachella"]
+    venue_names = ["RoseBowl", "Test","Coachella"]
     for venue_name in venue_names:
         paths = get_test_paths(venue=venue_name)
         d0, d1, d2 = TEST_PARAMS[venue_name]["diffuse_params"]
@@ -245,12 +248,45 @@ if __name__ == "__main__":
             number_of_trials = 1
             goal_time_limit = 2  # Amount of time limit to spend on a Goal
             tolerance = 2  # Steady state error
+            
+            x = GOALS[:, 0]
+            y = GOALS[:, 1]
+            z = GOALS[:, 2]
+            input_range = np.arange(0, len(x))
+            f_x = interpolate.interp1d(input_range, x)
+            f_y = interpolate.interp1d(input_range, y)
+            f_z = interpolate.interp1d(input_range, z)
+            print("Goal shape is:", GOALS.shape )
+            data_points = GOALS.shape[0] * 3
+            new_range = np.linspace(0, len(input_range) - 1, data_points)
+            x_new = f_x(new_range)
+            y_new = f_y(new_range)
+            z_new = f_z(new_range)
+            INTERPOLATED_GOALS = np.vstack((x_new, y_new, z_new)).T
+            print("New Goal shape is:", INTERPOLATED_GOALS.shape)
+
+            # Ramp input
+            # x_ramp = np.linspace(0,10,10)
+            # x_ramp = np.hstack((x_ramp,np.linspace(10,0,10)))
+            # y_ramp = np.linspace(0,20,20)
+            # # y_ramp = np.hstack((y_ramp,np.linspace(20,0,10)))
+            # z_ramp = np.linspace(5,5,20)
+            # GOALS = np.vstack((x_ramp,y_ramp,z_ramp)).T 
+            # YAWS = np.hstack((np.linspace(0, np.pi/4,10)))#, np.linspace(0, 0, 10)))
+            # YAWS = [0,0,0, np.pi/4,np.pi/4, np.pi/2,np.pi/2, 0.7 * np.pi, 0.7 *np.pi, 0.7 * np.pi, 0,0,0,0,0]
+            i_start = 0
+            i_end = -1
+            INTERPOLATED_GOALS = INTERPOLATED_GOALS[i_start:i_end,:]
+            # GOALS = GOALS[i_start:i_end,:]
+            number_of_trials = 1
+            goal_time_limit = 3  # Amount of time limit to spend on a Goal
+            tolerance = 3  # Steady state error
 
             num = abs(hash((path_index[0], path_index[1], GOALS[0][2], d)))
             map_image_path = 'path_planner/venues/{}/{}DiffusedPath{}.png'.format(venue_name, venue_name, num)
 
             print("Running sim for ", path_index, " on ", map_image_path)
-            error = Single_Point2Point(GOALS=GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance, plt_show=True, venue_path=map_image_path)
+            error = Single_Point2Point(GOALS=INTERPOLATED_GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance, plt_show=False, venue_path=map_image_path)
             np.savetxt('error_analysis/{}errors{}.txt'.format(venue_name, path_index), error)
 
     # for path_index, GOALS in paths.items():
