@@ -132,6 +132,7 @@ dmypy.json
 .idea/*
 Webots/*
 path_planner/cache/*
+path_planner/venues/*
 error_analysis/*
 outputs/*
 .DS_Store

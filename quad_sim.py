@@ -59,7 +59,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
                              'Yaw_Control_Limits': [-900, 900],
                              'Z_XY_offset': 500,
                              'Linear_PID': {'P': [120000, 120000, 15000],
-                                            'I': [70, 80, 30],
+                                            'I': [100, 100, 30],
                                             'D': [150000, 155000, 5500]},
                              'Linear_To_Angular_Scaler': [1, 1, 0],
                              'Yaw_Rate_Scaler': 1.1,
@@ -118,6 +118,8 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
     total_distance_travelled = 0
     PATH_LENGTH = len(GOALS)
     sim_start_time = datetime.datetime.now()
+    x_err = 0
+    y_err = 0
     for i in range(PATH_LENGTH):
         if i < PATH_LENGTH - 1:
             distance_to_go = distance(GOALS[i], GOALS[i + 1])
@@ -125,10 +127,12 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
 
         goal = GOALS[i]
         last_goal = GOALS[i] if i == 0 else GOALS[i - 1]
-        next_goal = GOALS[i] if i == PATH_LENGTH - 1 else GOALS[i + 1]
-        nextnext_goal = GOALS[i] if i == PATH_LENGTH - 1 else GOALS[i + 1]
+        n1_goal = GOALS[i] if i == PATH_LENGTH - 1 else GOALS[i + 1]
+        n2_goal = GOALS[i] if i == PATH_LENGTH - 2 else GOALS[i + 2]
+        n3_goal = GOALS[i] if i == PATH_LENGTH - 1 else GOALS[i + 3]
+        n4_goal = GOALS[i] if i == PATH_LENGTH - 2 else GOALS[i + 4]
         print("Goal:{0}, idx:{1}".format(goal, i))
-        ctrl.update_target(goal)
+        ctrl.update_target(goal, x_err, y_err)
         ctrl.update_yaw_target(0)
         goal_start_time = quad.get_time()
         time_lapse = 0
@@ -136,12 +140,13 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
         est_pos = np.array(est.get_estimated_state('q1')[0:3])
 
         dist = distance(est_pos, goal)
-        next_dist = distance(est_pos, next_goal)
-        nextnext_dist = distance(est_pos, nextnext_goal)
+        n1_dist = distance(est_pos, n1_goal)
+        n2_dist = distance(est_pos, n2_goal)
+        n3_dist = distance(est_pos, n3_goal)
+        n4_dist = distance(est_pos, n4_goal)
 
-        while not (dist < tolerance or
-                   next_dist < tolerance or
-                   nextnext_dist < 0.75 * tolerance):  # and not \
+        while not (dist < tolerance or n1_dist < tolerance or n2_dist < tolerance or
+                   n3_dist < tolerance or n4_dist < tolerance):  # and not \
             # time_lapse > goal_time_limit:
              # print("dist",dist)
             # gui_object.quads['q1']['position'] = quad.get_position('q1')
@@ -167,8 +172,10 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
             time_lapse = (datetime.datetime.now() - goal_start_time).total_seconds()
 
             dist = distance(est_state[0:3], goal)
-            next_dist = distance(est_state[0:3], next_goal)
-            nextnext_dist = distance(est_state[0:3], nextnext_goal)
+            n1_dist = distance(est_pos, n1_goal)
+            n2_dist = distance(est_pos, n2_goal)
+            n3_dist = distance(est_pos, n3_goal)
+            n4_dist = distance(est_pos, n4_goal)
             avg_velocity = total_distance_travelled / (datetime.datetime.now() - simulation_start_time).total_seconds()
 
             if venue_path is not None:
@@ -193,8 +200,8 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
 
             plot_results(fig, axes, lines, times, true_states, est_states, torques, speeds, accels, input_goal,
                          overshoots, avg_velocity, plt_pause=True)
-
-        
+        x_err = abs(est_pos[0] - goal[0]) / tolerance
+        y_err = abs(est_pos[1] - goal[1]) / tolerance
 
     sim_end_time = datetime.datetime.now()
     sim_total_time = (sim_end_time - sim_start_time).total_seconds()
@@ -240,7 +247,7 @@ def signal_handler(signal, frame):
 
 
 if __name__ == "__main__":
-    venue_names = ["RoseBowl", "Test", "Coachella"]
+    venue_names = ["Demo1", "RoseBowl", "Test", "Coachella"]
     for venue_name in venue_names:
         paths = get_test_paths(venue=venue_name)
         d0, d1, d2 = TEST_PARAMS[venue_name]["diffuse_params"]
@@ -250,8 +257,8 @@ if __name__ == "__main__":
         for path_index, GOALS in paths.items():
             number_of_trials = 1
             goal_time_limit = 2  # Amount of time limit to spend on a Goal
-            tolerance = 2  # Steady state error
-            
+            tolerance = 3  # Steady state error
+
             x = GOALS[:, 0]
             y = GOALS[:, 1]
             z = GOALS[:, 2]
@@ -274,7 +281,7 @@ if __name__ == "__main__":
             # y_ramp = np.linspace(0,20,20)
             # # y_ramp = np.hstack((y_ramp,np.linspace(20,0,10)))
             # z_ramp = np.linspace(5,5,20)
-            # GOALS = np.vstack((x_ramp,y_ramp,z_ramp)).T 
+            # GOALS = np.vstack((x_ramp,y_ramp,z_ramp)).T
             # YAWS = np.hstack((np.linspace(0, np.pi/4,10)))#, np.linspace(0, 0, 10)))
             # YAWS = [0,0,0, np.pi/4,np.pi/4, np.pi/2,np.pi/2, 0.7 * np.pi, 0.7 *np.pi, 0.7 * np.pi, 0,0,0,0,0]
             i_start = 0
@@ -283,14 +290,15 @@ if __name__ == "__main__":
             # GOALS = GOALS[i_start:i_end,:]
             number_of_trials = 1
             goal_time_limit = 3  # Amount of time limit to spend on a Goal
-            tolerance = 3  # Steady state error
+            tolerance = 2  # Steady state error
 
             num = abs(hash((path_index[0], path_index[1], GOALS[0][2], d)))
-            map_image_path = 'path_planner/venues/{}/{}DiffusedPath{}.png'.format(venue_name, venue_name, num)
+            v = 'Demo' if venue_name[0:4] == 'Demo' else venue_name
+            map_image_path = 'path_planner/venues/{}/{}DiffusedPath{}.png'.format(v, venue_name, num)
 
             print("Running sim for ", path_index, " on ", map_image_path)
-            error = Single_Point2Point(GOALS=GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance, plt_show=False,
-                                       venue_path=map_image_path, ratio=distance_to_pixel_ratio)
+            error = Single_Point2Point(GOALS=INTERPOLATED_GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance,
+                                       plt_show=False, venue_path=map_image_path, ratio=distance_to_pixel_ratio)
             np.savetxt('error_analysis/{}errors{}.txt'.format(venue_name, path_index), error)
 
     # for path_index, GOALS in paths.items():

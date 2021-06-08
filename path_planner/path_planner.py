@@ -15,7 +15,7 @@ import cv2
 from queue import PriorityQueue
 from abc import ABC, abstractmethod
 
-DEBUG = True
+DEBUG = False
 
 def debug(*msg):
     if DEBUG:
@@ -288,11 +288,6 @@ class A_star(PathFinder):
             if r is not None:
                 debug("Returning cached path for venue: {} start: {} target: {} alt: {} diffuse_params: {}"
                           .format(self.venue_name, start, target, alt, self.diffuse_params))
-                if DRAW:
-                    name_base = self.map_image_path[:-4]
-                    draw_path(self.map_image_path, r, out_file=name_base + "Path" + str(num) + ".png")
-                    # draw_path(name_base + "Orig.png", r, out_file=name_base + "OrigPath" + str(num) + ".png")
-                    draw_path(self.grid.grid.copy(), r, out_file=name_base + "DiffusedPath" + str(num) + ".png")
                 return r
         debug("No cache file for venue:{} hash: {} start: {} target: {} alt: {} diffuse_params: {}"
                   .format(self.venue_name, str(num), start, target, alt, self.diffuse_params))
@@ -351,6 +346,9 @@ class A_star(PathFinder):
 
         pruned_path = self.prune_path(path[::-1], path_cost[::-1])
 
+        with open(cache_path, 'w') as out:
+            np.savetxt(out, pruned_path, delimiter=' ', fmt='%d')
+
         if DRAW:
             name_base = self.map_image_path[:-4]
             draw_path(self.map_image_path, pruned_path, out_file=name_base + "Path" + str(num) + ".png")
@@ -372,8 +370,7 @@ class A_star(PathFinder):
 
 def get_test_paths(venue, DRAW=True, USE_PATH_CACHE=True, USE_DIFFUSED_CACHE=True):
     global TEST_PARAMS
-    debug("USE_PATH_CACHE = {}".format(USE_PATH_CACHE))
-    debug("USE_DIFFUSED_CACHE = {}".format(USE_DIFFUSED_CACHE))
+    debug("USE_CACHE = {}".format(USE_PATH_CACHE))
     debug("DRAW = {}".format(DRAW))
     if venue not in TEST_PARAMS:
         print("Invalid venue name:", venue)
@@ -398,6 +395,7 @@ def get_test_paths(venue, DRAW=True, USE_PATH_CACHE=True, USE_DIFFUSED_CACHE=Tru
             path = a.find_path(s, t, DRAW=DRAW, USE_CACHE=USE_PATH_CACHE)
             paths[(s, t)] = path
             debug(venue + ": Found path for " + venue + ": " + endpts_string + ": {} pts long".format(len(path)))
+
 
     return paths
 
@@ -431,7 +429,7 @@ TEST_PARAMS = {
         "target": [(414, 131), (72, 194), (683, 200), (164, 508), (774, 731), (258, 756)]
     },
     "Demo1": {
-        "distance_to_pixel_ratio": 1.0,
+        "distance_to_pixel_ratio": 0.5,
         "diffuse_params": [9, (31, 31), 196],
         "start": [(55, 46)],
         "target": [(697, 590)]
@@ -439,11 +437,11 @@ TEST_PARAMS = {
 }
 
 if __name__ == '__main__':
-    DEBUG = False
+    DEBUG = True
     paths = get_test_paths("Demo1", DRAW=True, USE_PATH_CACHE=False, USE_DIFFUSED_CACHE=True)
 
     exit(0)
-    paths = get_test_paths("ElectricForest", DRAW=True, USE_PATH_CACHE=True, USE_DIFFUSED_CACHE=True)
+    paths = get_test_paths("ElectricForest", DRAW=True, USE_PATH_CACHE=False, USE_DIFFUSED_CACHE=True)
     paths = get_test_paths("Test", DRAW=True, USE_PATH_CACHE=False, USE_DIFFUSED_CACHE=True)
     paths = get_test_paths("RoseBowl", DRAW=True, USE_PATH_CACHE=False, USE_DIFFUSED_CACHE=True)
     paths = get_test_paths("Coachella", DRAW=True, USE_PATH_CACHE=False, USE_DIFFUSED_CACHE=True)
