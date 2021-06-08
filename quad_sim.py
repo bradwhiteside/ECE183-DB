@@ -59,7 +59,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
                              'Yaw_Control_Limits': [-900, 900],
                              'Z_XY_offset': 500,
                              'Linear_PID': {'P': [120000, 120000, 15000],
-                                            'I': [70, 80, 7],
+                                            'I': [10, 10, 7],
                                             'D': [150000, 155000, 5500]},
                              'Linear_To_Angular_Scaler': [1, 1, 0],
                              'Yaw_Rate_Scaler': 1.1,
@@ -172,8 +172,9 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
             avg_velocity = total_distance_travelled / (datetime.datetime.now() - simulation_start_time).total_seconds()
 
             if venue_path is not None:
+                thickness = 6 if 6 < (map_image.shape[0] // 128) + 1 else (map_image.shape[0] // 128) + 1
                 new_image = cv2.circle(map_image.copy(), (round(true_state[0] / ratio), round(true_state[1] / ratio)),
-                                       3, (255, 0, 255, 255), -1)
+                                       thickness, (255, 0, 255, 255), -1)
                 cv2.imshow('Real time path', new_image)
                 key = cv2.waitKey(1)
                 if key == ord('q'):
@@ -235,7 +236,7 @@ def signal_handler(signal, frame):
 
 
 if __name__ == "__main__":
-    venue_names = ["Test", "RoseBowl", "Coachella"]
+    venue_names = ["RoseBowl", "Test", "Coachella"]
     for venue_name in venue_names:
         paths = get_test_paths(venue=venue_name)
         d0, d1, d2 = TEST_PARAMS[venue_name]["diffuse_params"]
@@ -251,7 +252,7 @@ if __name__ == "__main__":
             map_image_path = 'path_planner/venues/{}/{}DiffusedPath{}.png'.format(venue_name, venue_name, num)
 
             print("Running sim for ", path_index, " on ", map_image_path)
-            error = Single_Point2Point(GOALS=GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance, plt_show=True,
+            error = Single_Point2Point(GOALS=GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance, plt_show=False,
                                        venue_path=map_image_path, ratio=distance_to_pixel_ratio)
             np.savetxt('error_analysis/{}errors{}.txt'.format(venue_name, path_index), error)
 

@@ -25,7 +25,7 @@ def distance(x, y):
     return np.linalg.norm(np.array(x) - np.array(y))
 
 
-def color2cost(color, shift=6, scale=16):
+def color2cost(color, shift=6, scale=4):
     c = 0 if color == 0 else np.log2(color)
     sig = 1 / (1 + np.exp(-c + shift))
     return scale * sig
@@ -72,7 +72,7 @@ def draw_path(image, path, out_file=None, color=(0, 255, 255, 255), fade=False):
 def check_cached_path(path):
     try:
         with open(path) as f:
-            return np.genfromtxt(path, delimiter=' ', dtype=int)
+            return np.genfromtxt(path, delimiter=' ', dtype=float)
     except (FileNotFoundError, IOError):
         debug("No cached file: " + path)
         return None
@@ -146,7 +146,7 @@ class Dijkstra(PathFinder):
         path = []
         while True:
             pt = node.pos
-            pt[2] = pt[2] + min_alt
+            pt[2] = (pt[2] // 4) + min_alt
             path.insert(0, pt)
             node = self.parents[node]
             if node == start:
@@ -211,9 +211,9 @@ class A_star(PathFinder):
         pruned_path = np.array(path).reshape((length, 3))
 
         # From https://stackoverflow.com/questions/20618804/how-to-smooth-a-curve-in-the-right-way
-        box_pts = 12
+        box_pts = 15
         box = np.ones(box_pts) / box_pts
-        for _ in range(3):
+        for _ in range(5):
             x = pruned_path[:, 0]
             y = pruned_path[:, 1]
             pruned_path[:, 0] = scipy.ndimage.convolve(x, box)
@@ -224,16 +224,16 @@ class A_star(PathFinder):
         pruned_path = np.array([pruned_path[index] for index in sorted(indexes)])
 
         # prune collinear pts
-        """i = 0
+        i = 0
         while i < (pruned_path.shape[0] - 2):
             p1 = pruned_path[i]
             p2 = pruned_path[i+1]
             p3 = pruned_path[i+2]
-            if distance(p1, p2) <= 8 and collinearity_check(p1, p2, p3):
+            if distance(p1, p2) <= 4 / TEST_PARAMS[self.venue_name]["distance_to_pixel_ratio"] and collinearity_check(p1, p2, p3):
                 pruned_path = np.delete(pruned_path, i + 1, axis=0)
             else:
                 i += 1
-        debug("Pruned Path is %d points long" % len(pruned_path))"""
+        debug("Pruned Path is %d points long" % len(pruned_path))
         return pruned_path
 
     def diffuse(self, iter, k=(9, 9), transparent_cost=196, USE_CACHE=True):
@@ -281,7 +281,8 @@ class A_star(PathFinder):
 
     def find_path(self, start, target, alt=10, h=h3, DRAW=True, USE_CACHE=True):
         num = abs(hash((start, target, alt, self.diffuse_params)))
-        cache_path = PATH_PREFIX + "cache/" + self.venue_name + '/' + str(num) + '.csv'
+        v = 'Demo' if self.venue_name[0:4] == 'Demo' else self.venue_name
+        cache_path = PATH_PREFIX + "cache/" + v + '/' + str(num) + '.csv'
         if USE_CACHE:
             r = check_cached_path(cache_path)
             if r is not None:
@@ -290,7 +291,7 @@ class A_star(PathFinder):
                 if DRAW:
                     name_base = self.map_image_path[:-4]
                     draw_path(self.map_image_path, r, out_file=name_base + "Path" + str(num) + ".png")
-                    draw_path(name_base + "Orig.png", r, out_file=name_base + "OrigPath" + str(num) + ".png")
+                    # draw_path(name_base + "Orig.png", r, out_file=name_base + "OrigPath" + str(num) + ".png")
                     draw_path(self.grid.grid.copy(), r, out_file=name_base + "DiffusedPath" + str(num) + ".png")
                 return r
         debug("No cache file for venue:{} hash: {} start: {} target: {} alt: {} diffuse_params: {}"
@@ -353,18 +354,53 @@ class A_star(PathFinder):
         if DRAW:
             name_base = self.map_image_path[:-4]
             draw_path(self.map_image_path, pruned_path, out_file=name_base + "Path" + str(num) + ".png")
-            draw_path(name_base + "Orig.png", pruned_path, out_file=name_base + "OrigPath" + str(num) + ".png")
+            # draw_path(name_base + "Orig.png", pruned_path, out_file=name_base + "OrigPath" + str(num) + ".png")
             draw_path(self.grid.grid.copy(), pruned_path, out_file=name_base + "DiffusedPath" + str(num) + ".png")
 
         ratio = TEST_PARAMS[self.venue_name]["distance_to_pixel_ratio"]
+        pruned_path = pruned_path.astype(float)
         for i in range(pruned_path.shape[0]):
-            pruned_path[i][0] = round(pruned_path[i][0] * ratio)
-            pruned_path[i][1] = round(pruned_path[i][1] * ratio)
+            pruned_path[i][0] = pruned_path[i][0] * ratio
+            pruned_path[i][1] = pruned_path[i][1] * ratio
 
         with open(cache_path, 'w') as out:
+            debug("Writing {} to cache".format(out))
             np.savetxt(out, pruned_path, delimiter=' ', fmt='%.2f')
 
         return pruned_path
+
+
+def get_test_paths(venue, DRAW=True, USE_PATH_CACHE=True, USE_DIFFUSED_CACHE=True):
+    global TEST_PARAMS
+    debug("USE_PATH_CACHE = {}".format(USE_PATH_CACHE))
+    debug("USE_DIFFUSED_CACHE = {}".format(USE_DIFFUSED_CACHE))
+    debug("DRAW = {}".format(DRAW))
+    if venue not in TEST_PARAMS:
+        print("Invalid venue name:", venue)
+        exit(1)
+
+    v = 'Demo' if venue[0:4] == 'Demo' else venue
+    map_image_path = PATH_PREFIX + "venues/" + v + "/" + venue + ".png"
+    a = A_star(venue, map_image_path)
+    if len(TEST_PARAMS[venue]["start"]) == 0 or len(TEST_PARAMS[venue]["target"]) == 0:
+        a.grid.find_endpoints(50, 255)
+        exit(0)
+
+    a.diffuse(*TEST_PARAMS[venue]["diffuse_params"], USE_CACHE=USE_DIFFUSED_CACHE)
+    start_pts = TEST_PARAMS[venue]["start"]
+    target_pts = TEST_PARAMS[venue]["target"]
+    paths = {}
+
+    for s in start_pts:
+        for t in target_pts:
+            endpts_string = '(' + str(s[0]) + ", " + str(s[1]) + ') --> (' + str(t[0]) + ", " + str(t[1]) + ')'
+            debug(venue + ": Finding path for ", endpts_string)
+            path = a.find_path(s, t, DRAW=DRAW, USE_CACHE=USE_PATH_CACHE)
+            paths[(s, t)] = path
+            debug(venue + ": Found path for " + venue + ": " + endpts_string + ": {} pts long".format(len(path)))
+
+    return paths
+
 
 TEST_PARAMS = {
     "Test": {
@@ -386,62 +422,28 @@ TEST_PARAMS = {
         "diffuse_params": [5, (7, 7), 196],
         "start": [(1447, 546), (1515, 547), (1568, 780), (1414, 855), (1413, 908), (1411, 957)],
         "target": [(263, 356), (1086, 701), (201, 790), (186, 1359), (666, 1391)],
+    },
+
+    "ElectricForest": {
+        "distance_to_pixel_ratio": 0.63,
+        "diffuse_params": [5, (7, 7), 128],
+        "start": [(923, 432), (669, 509), (457, 543)],
+        "target": [(414, 131), (72, 194), (683, 200), (164, 508), (774, 731), (258, 756)]
+    },
+    "Demo1": {
+        "distance_to_pixel_ratio": 1.0,
+        "diffuse_params": [9, (31, 31), 196],
+        "start": [(55, 46)],
+        "target": [(697, 590)]
     }
 }
 
-class path_finder_thread_spawner:
-    def __init__(self, A, paths):
-        self.A = A
-        self.paths = paths
-        self.threads = []
-
-    def start_thread(self, s, t, DRAW, USE_CACHE):
-        t = threading.Thread(target=self.thread_run, args=(s, t, DRAW, USE_CACHE))
-        self.threads.append(t)
-        t.start()
-
-    def thread_run(self, s, t, DRAW, USE_CACHE):
-        self.paths[(s, t)] = self.A.find_path(s, t, DRAW=DRAW, USE_CACHE=USE_CACHE)
-
-    def join_all_threads(self):
-        for t in self.threads:
-            t.join()
-
-def get_test_paths(venue, DRAW=False, USE_PATH_CACHE=True, USE_DIFFUSED_CACHE=True):
-    global TEST_PARAMS
-    debug("USE_PATH_CACHE = {}".format(USE_PATH_CACHE))
-    debug("USE_DIFFUSED_CACHE = {}".format(USE_DIFFUSED_CACHE))
-    debug("DRAW = {}".format(DRAW))
-    if venue not in TEST_PARAMS:
-        print("Invalid venue name: %s", venue)
-        exit(1)
-
-    map_image_path = PATH_PREFIX + "venues/" + venue + "/" + venue + ".png"
-    a = A_star(venue, map_image_path)
-    if len(TEST_PARAMS[venue]["start"]) == 0 or len(TEST_PARAMS[venue]["target"]) == 0:
-        a.grid.find_endpoints(50, 255)
-        exit(0)
-
-    a.diffuse(*TEST_PARAMS[venue]["diffuse_params"], USE_CACHE=USE_DIFFUSED_CACHE)
-    start_pts = TEST_PARAMS[venue]["start"]
-    target_pts = TEST_PARAMS[venue]["target"]
-    paths = {}
-
-    for s in start_pts:
-        for t in target_pts:
-            endpts_string = '(' + str(s[0]) + ", " + str(s[1]) + ') --> (' + str(t[0]) + ", " + str(t[1]) + ')'
-            debug(venue + ": Finding path for ", endpts_string)
-            P = path_finder_thread_spawner(deepcopy(a), paths)
-            P.start_thread(s, t, DRAW=DRAW, USE_CACHE=USE_PATH_CACHE)
-            # path = a.find_path(s, t, DRAW=DRAW, USE_CACHE=USE_CACHE)
-            # paths[(s, t)] = path
-            # debug(venue + ": Found path for " + venue + ": " + endpts_string + ": {} pts long".format(len(path)))
-    P.join_all_threads()
-
-    return paths
-
 if __name__ == '__main__':
     DEBUG = False
+    paths = get_test_paths("Demo1", DRAW=True, USE_PATH_CACHE=False, USE_DIFFUSED_CACHE=True)
+
+    exit(0)
+    paths = get_test_paths("ElectricForest", DRAW=True, USE_PATH_CACHE=True, USE_DIFFUSED_CACHE=True)
     paths = get_test_paths("Test", DRAW=True, USE_PATH_CACHE=False, USE_DIFFUSED_CACHE=True)
     paths = get_test_paths("RoseBowl", DRAW=True, USE_PATH_CACHE=False, USE_DIFFUSED_CACHE=True)
     paths = get_test_paths("Coachella", DRAW=True, USE_PATH_CACHE=False, USE_DIFFUSED_CACHE=True)
