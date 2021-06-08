@@ -105,7 +105,7 @@ class EKF():
         # print(self.mean[2] - self.get_positions(self.quad_id)[2])
         # print(self.mean[0:3])
         A = np.eye(3,3)
-        G = np.eye(3,3) * [1,1,20]#* self.time_update_rate
+        G = np.eye(3,3) * [0.01,0.01,20]#* self.time_update_rate
         self.cov[0:3,0:3] = self.cov[0:3,0:3] + self.time_update_rate * (A @ self.cov[0:3,0:3] + self.cov[0:3,0:3] @ A.T + G @ self.Q @ G.T)
         # print(np.degrees(self.mean[6:9] - self.get_states(self.quad_id)[6:9]))
         
