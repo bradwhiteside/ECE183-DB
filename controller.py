@@ -57,8 +57,8 @@ class Controller_PID_Point2Point():
         z_error = dest_z-z
         
         #Intergral term term (add)
-        self.xi_term = 300000 * np.sign(self.xi_term) if abs(self.xi_term) > 300000 else self.xi_term + self.LINEAR_I[0]*x_error
-        self.yi_term = 300000 * np.sign(self.yi_term) if abs(self.yi_term) > 300000 else self.yi_term + self.LINEAR_I[0]*y_error
+        self.xi_term += self.LINEAR_I[0]*x_error
+        self.yi_term += self.LINEAR_I[0]*y_error
         self.zi_term += self.LINEAR_I[2]*z_error
         
         #PID(x,y,z)
@@ -155,9 +155,9 @@ class Controller_PID_Point2Point():
         M = np.clip([m1,m2,m3,m4,m5,m6],self.MOTOR_LIMITS[0],self.MOTOR_LIMITS[1])
         self.actuate_motors(self.quad_identifier,M)
 
-    def update_target(self,target, x_err, y_err):
-        self.xi_term *= (0.85 + y_err/10)
-        self.yi_term *= (0.85 + x_err/10)
+    def update_target(self,target):
+        self.xi_term *= 0.9
+        self.yi_term *= 0.9
         self.target = target
 
     def update_yaw_target(self,target):

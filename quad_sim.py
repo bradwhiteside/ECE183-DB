@@ -118,8 +118,6 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
     total_distance_travelled = 0
     PATH_LENGTH = len(GOALS)
     sim_start_time = datetime.datetime.now()
-    x_err = 0
-    y_err = 0
     for i in range(PATH_LENGTH):
         if i < PATH_LENGTH - 1:
             distance_to_go = distance(GOALS[i], GOALS[i + 1])
@@ -132,7 +130,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
         n3_goal = GOALS[i] if i == PATH_LENGTH - 1 else GOALS[i + 3]
         n4_goal = GOALS[i] if i == PATH_LENGTH - 2 else GOALS[i + 4]
         print("Goal:{0}, idx:{1}".format(goal, i))
-        ctrl.update_target(goal, x_err, y_err)
+        ctrl.update_target(goal)
         ctrl.update_yaw_target(0)
         goal_start_time = quad.get_time()
         time_lapse = 0
@@ -200,8 +198,6 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
 
             plot_results(fig, axes, lines, times, true_states, est_states, torques, speeds, accels, input_goal,
                          overshoots, avg_velocity, plt_pause=True)
-        x_err = abs(est_pos[0] - goal[0]) / tolerance
-        y_err = abs(est_pos[1] - goal[1]) / tolerance
 
     sim_end_time = datetime.datetime.now()
     sim_total_time = (sim_end_time - sim_start_time).total_seconds()
