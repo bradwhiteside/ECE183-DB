@@ -150,7 +150,7 @@ def plot_results(figure, axes, lines, times, true_states, est_states, torques, s
         figure = None
 
 
-def plot_all_results(times, true_states, est_states, torques=0, speeds=0, accels=0, input_goal=0, yaw_goal=0, overshoots=0, plt_pause=False,
+def plot_all_results(output_save_path, times, true_states, est_states, torques=0, speeds=0, accels=0, input_goal=0, yaw_goal=0, overshoots=0, plt_pause=False,
                      plt_show=False):
     if (plt_show == True):
         i_1 = 0
@@ -198,21 +198,22 @@ def plot_all_results(times, true_states, est_states, torques=0, speeds=0, accels
         ax1[1, 1].set_ylabel('pitch (deg)')
         ax1[1, 1].legend()
 
-        ax1[2, 1].plot(times, np.degrees(est_states[:, 8]), label="yaw_est", color="green")
-        ax1[2, 1].plot(times, np.degrees(yaw_goal), label = "yaw goal")
-        ax1[2, 1].plot(times, np.degrees(true_states[:, 8]), label="yaw")
-        ax1[2, 1].set_xlabel('time (s)')
-        ax1[2, 1].set_ylabel('yaw (deg)')
-        ax1[2, 1].set_ylim([-5,5])
-        ax1[2, 1].legend()
-
-        # ax1[2, 1].plot(times, overshoots[i_1:i_2, 1], label="overshoot max", color="green")
-        # ax1[2, 1].plot(times[i_1:i_2], overshoots[i_1:i_2, 0], label="overshoot")
+        # ax1[2, 1].plot(times, np.degrees(est_states[:, 8]), label="yaw_est", color="green")
+        # ax1[2, 1].plot(times, np.degrees(yaw_goal), label = "yaw goal")
+        # ax1[2, 1].plot(times, np.degrees(true_states[:, 8]), label="yaw")
         # ax1[2, 1].set_xlabel('time (s)')
-        # ax1[2, 1].set_ylabel('overshoot (m)')
+        # ax1[2, 1].set_ylabel('yaw (deg)')
+        # ax1[2, 1].set_ylim([-5,5])
         # ax1[2, 1].legend()
+
+        ax1[2, 1].plot(times, overshoots[i_1:i_2, 1], label="overshoot max", color="green")
+        ax1[2, 1].plot(times[i_1:i_2], overshoots[i_1:i_2, 0], label="overshoot")
+        ax1[2, 1].set_xlabel('time (s)')
+        ax1[2, 1].set_ylabel('overshoot (m)')
+        ax1[2, 1].legend()
         plt.tight_layout(h_pad = 0.7)
-        plt.show()
+        plt.savefig('{}.jpg'.format(output_save_path), bbox_inches='tight', dpi=150)
+        # plt.show()
 
         # fig2, ax2 = plt.subplots(3,2,figsize=(10,  7))
     # fig2.suptitle('v_x, v_y, v_z, roll_rate, pitch_rate, yaw_rate', fontsize=16)

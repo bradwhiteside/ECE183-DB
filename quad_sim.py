@@ -33,7 +33,8 @@ def calc_overshoot(line_start_pt, line_end_pt, est_pos):
         np.cross(line_start_pt - line_end_pt, est_pos - line_start_pt) / np.linalg.norm(line_start_pt - line_end_pt))
 
 
-def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_path=None, ratio=1.0, error_save_path='error_analysis/'):
+def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_path=None, ratio=1.0,
+                       error_save_path='error_analysis/', output_save_path='outputs/'):
     start = GOALS[0]
     YAWS = [0] * len(GOALS)
 
@@ -224,7 +225,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
     np.savetxt('{}input_goal.csv'.format(error_save_path), input_goal)
     np.savetxt('{}yaw_goal.csv'.format(error_save_path), yaw_goal)
     plt.ioff()
-    # plot_all_results(times, true_states, est_states, torques, speeds, accels, input_goal, overshoots, plt_show=True)
+    plot_all_results(output_save_path, times, true_states, est_states, torques, speeds, accels, input_goal, overshoots, plt_show=True)
 
     return error
 
@@ -297,8 +298,10 @@ if __name__ == "__main__":
 
             print("Running sim for ", path_index, " on ", map_image_path)
             error_save_path = 'error_analysis/{}{}'.format(venue_name, path_index)
+            output_save_path = 'outputs/{}{}'.format(venue_name, path_index)
             error = Single_Point2Point(GOALS=GOALS, goal_time_limit=goal_time_limit, tolerance=tolerance,
-                                       plt_show=False, venue_path=None, ratio=distance_to_pixel_ratio, error_save_path=error_save_path)
+                                       plt_show=False, venue_path=None, ratio=distance_to_pixel_ratio,
+                                       error_save_path=error_save_path, output_save_path=output_save_path)
             if error is not None:
                 np.savetxt('{}errors.csv'.format(error_save_path), error)
 
