@@ -101,7 +101,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
     # Update the GUI while switching between destination poitions
     # output_file_name = "outputs/" + map.split('/')[2] + "_path_data.csv"
     # output_file = open(output_file_name, 'w', buffering=65536)
-    times = np.empty(0)
+    times = np.empty((0, 1))
     input_goal = np.empty((0, 3), float)
     yaw_goal = np.empty(0)
 
@@ -127,7 +127,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
         sim_cur_time = datetime.datetime.now()
         if (sim_cur_time - sim_start_time).total_seconds() > 1200:  # 20 minutes
             print("Quitting simulation after reaching time limit of 20 minutes")
-            return None
+            break
 
         if i < PATH_LENGTH - 1:
             distance_to_go = distance(GOALS[i], GOALS[i + 1])
@@ -175,7 +175,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
             overshoots = np.append(overshoots, np.array([[calc_overshoot(last_goal, goal, est_state[0:3]), 2]]), axis=0)
 
             time = quad.get_time()
-            times = np.append(times, np.array([(time - simulation_start_time).total_seconds()]), axis=0)
+            times = np.append(times, np.array([[(time - simulation_start_time).total_seconds()]]), axis=0)
             time_lapse = (datetime.datetime.now() - goal_start_time).total_seconds()
 
             dist = distance(est_state[0:3], goal)
@@ -219,11 +219,13 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
 
     error = true_states - est_states
 
-    np.savetxt('{}times.csv'.format(error_save_path), times)
-    np.savetxt('{}true_data.csv'.format(error_save_path), true_states)
-    np.savetxt('{}est_data.csv'.format(error_save_path), est_states)
-    np.savetxt('{}input_goal.csv'.format(error_save_path), input_goal)
-    np.savetxt('{}yaw_goal.csv'.format(error_save_path), yaw_goal)
+    print(times.shape)
+    print(input_goal.shape)
+    print(true_states.shape)
+    print(est_states.shape)
+    print(overshoots.shape)
+    output = np.hstack((times, input_goal, true_states, est_states, overshoots))
+    np.savetxt('{}output.csv'.format(error_save_path), output)
     plt.ioff()
     plot_all_results(output_save_path, times, true_states, est_states, torques, speeds, accels, input_goal, overshoots, plt_show=True)
 

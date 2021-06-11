@@ -150,7 +150,7 @@ def plot_results(figure, axes, lines, times, true_states, est_states, torques, s
         figure = None
 
 
-def plot_all_results(output_save_path, times, true_states, est_states, torques=0, speeds=0, accels=0, input_goal=0, yaw_goal=0, overshoots=0, plt_pause=False,
+def plot_all_results(output_save_path, times, true_states, est_states, torques=0, speeds=0, accels=0, input_goal=0, overshoots=0, plt_pause=False,
                      plt_show=False):
     if (plt_show == True):
         i_1 = 0
@@ -158,15 +158,15 @@ def plot_all_results(output_save_path, times, true_states, est_states, torques=0
         fig1, ax1 = plt.subplots(3, 2, figsize=(10, 7))
         fig1.suptitle('x, y, z, roll, pitch, yaw', fontsize=16)
         ax1[0, 0].plot(times, est_states[:, 0], label="x dir_est", color="green")
-        ax1[0, 0].plot(times[i_1:i_2], input_goal[i_1:i_2, 0], label="x goal")
-        ax1[0, 0].plot(times[i_1:i_2], true_states[i_1:i_2, 0], label="x dir")
+        ax1[0, 0].plot(times, input_goal[:, 0], label="x goal")
+        ax1[0, 0].plot(times, true_states[:, 0], label="x dir")
         ax1[0, 0].set_xlabel('time (s)')
         ax1[0, 0].set_ylabel('x (m)')
         ax1[0, 0].legend()
 
         ax1[1, 0].plot(times, est_states[:, 1], label="y dir_est", color="green")
-        ax1[1, 0].plot(times[i_1:i_2], input_goal[i_1:i_2, 1], label="y goal")
-        ax1[1, 0].plot(times[i_1:i_2], true_states[i_1:i_2, 1], label="y dir")
+        ax1[1, 0].plot(times, input_goal[:, 1], label="y goal")
+        ax1[1, 0].plot(times, true_states[:, 1], label="y dir")
         ax1[1, 0].set_xlabel('time (s)')
         ax1[1, 0].set_ylabel('y (m)')
         ax1[1, 0].legend()
@@ -179,21 +179,21 @@ def plot_all_results(output_save_path, times, true_states, est_states, torques=0
         # ax1[2,0].legend()
 
         ax1[2, 0].plot(times, est_states[:, 2], label="z dir_est", color="green")
-        ax1[2, 0].plot(times[i_1:i_2], input_goal[i_1:i_2, 2], label="z goal")
-        ax1[2, 0].plot(times[i_1:i_2], true_states[i_1:i_2, 2], label="z (altitude)")
+        ax1[2, 0].plot(times, input_goal[:, 2], label="z goal")
+        ax1[2, 0].plot(times, true_states[:, 2], label="z (altitude)")
         ax1[2, 0].set_xlabel('time (s)')
         ax1[2, 0].set_ylabel('z (m)')
         ax1[2,0].set_ylim([0,11])
         ax1[2, 0].legend()
 
         ax1[0, 1].plot(times, np.degrees(est_states[:, 6]), label="roll_est", color="green")
-        ax1[0, 1].plot(times[i_1:i_2], np.degrees(true_states[i_1:i_2, 6]), label="roll")
+        ax1[0, 1].plot(times, np.degrees(true_states[:, 6]), label="roll")
         ax1[0, 1].set_xlabel('time (s)')
         ax1[0, 1].set_ylabel('roll (deg)')
         ax1[0, 1].legend()
 
         ax1[1, 1].plot(times, np.degrees(est_states[:, 7]), label="pitch_est", color="green")
-        ax1[1, 1].plot(times[i_1:i_2], np.degrees(true_states[i_1:i_2, 7]), label="pitch")
+        ax1[1, 1].plot(times, np.degrees(true_states[:, 7]), label="pitch")
         ax1[1, 1].set_xlabel('time (s)')
         ax1[1, 1].set_ylabel('pitch (deg)')
         ax1[1, 1].legend()
@@ -206,8 +206,8 @@ def plot_all_results(output_save_path, times, true_states, est_states, torques=0
         # ax1[2, 1].set_ylim([-5,5])
         # ax1[2, 1].legend()
 
-        ax1[2, 1].plot(times, overshoots[i_1:i_2, 1], label="overshoot max", color="green")
-        ax1[2, 1].plot(times[i_1:i_2], overshoots[i_1:i_2, 0], label="overshoot")
+        ax1[2, 1].plot(times, overshoots[:, 1], label="overshoot max", color="green")
+        ax1[2, 1].plot(times, overshoots[:, 0], label="overshoot")
         ax1[2, 1].set_xlabel('time (s)')
         ax1[2, 1].set_ylabel('overshoot (m)')
         ax1[2, 1].legend()
