@@ -225,7 +225,7 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
     print(est_states.shape)
     print(overshoots.shape)
     output = np.hstack((times, input_goal, true_states, est_states, overshoots))
-    np.savetxt('{}output.csv'.format(error_save_path), output)
+    np.savetxt('{}output.csv'.format(error_save_path), output, delimiter=' ', fmt='%.3f')
     plt.ioff()
     plot_all_results(output_save_path, times, true_states, est_states, torques, speeds, accels, input_goal, overshoots, plt_show=True)
 
@@ -305,7 +305,7 @@ if __name__ == "__main__":
                                        plt_show=False, venue_path=None, ratio=distance_to_pixel_ratio,
                                        error_save_path=error_save_path, output_save_path=output_save_path)
             if error is not None:
-                np.savetxt('{}errors.csv'.format(error_save_path), error)
+                np.savetxt('{}errors.csv'.format(error_save_path), error, delimiter=' ', fmt='%.3f')
 
             sims_for_cur_venue += 1
 
