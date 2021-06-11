@@ -154,8 +154,8 @@ def Single_Point2Point(GOALS, goal_time_limit, tolerance, plt_show=False, venue_
         n4_dist = distance(est_pos, n4_goal)
 
         while not (dist < tolerance or n1_dist < tolerance or n2_dist < tolerance or
-                   n3_dist < tolerance or n4_dist < tolerance):  # and not \
-                    # time_lapse > goal_time_limit:
+                   n3_dist < tolerance or n4_dist < tolerance) and not \
+                    time_lapse > goal_time_limit*distance_to_go:
             # print("dist",dist)
             # gui_object.quads['q1']['position'] = quad.get_position('q1')
             # gui_object.quads['q1']['orientation'] = quad.get_orientation('q1')
